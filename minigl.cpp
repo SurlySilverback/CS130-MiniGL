@@ -44,6 +44,54 @@ inline void MGL_ERROR(const char* description) {
 }
 
 
+/*************** Basic Structures ***************/
+
+// Vertex
+struct vertex
+{
+    /*Local Variables*/
+    vec4 pos;
+    vec3 color;
+
+    /*Constructor with params*/
+    vertex(vec4 pos, vec3 color) : pos(pos), color(color) {}
+};
+
+
+// Triangle
+struct triangle
+{
+    /*Local Variables*/
+    vertex a, b, c;
+    
+    /*Constructor with Params*/
+    triangle(vertex v1, vertex v2, vertex v3) : a(v1), b(v2), c(v3) {}
+};
+
+
+/********** Variables **********/
+
+// drawMode
+MGLpoly_mode drawMode;
+
+// listOfVertices
+vector<vertex> listOfVertices;
+
+// currColor
+vec3 currColor;
+
+// listOfTriangles
+vector<triangle> listOfTriangles;
+
+
+/********** Functions **********/
+
+void mglColor( vec3 color )
+{
+    currColor = color;
+};
+
+
 /**
  * Read pixel data starting with the pixel at coordinates
  * (0, 0), up to (width,  height), into the array
@@ -60,7 +108,7 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-}
+};
 
 /**
  * Start specifying the vertices for a group of primitives,
@@ -68,7 +116,8 @@ void mglReadPixels(MGLsize width,
  */
 void mglBegin(MGLpoly_mode mode)
 {
-}
+    drawMode = mode;
+};
 
 
 /**
@@ -76,7 +125,49 @@ void mglBegin(MGLpoly_mode mode)
  */
 void mglEnd()
 {
-}
+    int i = 0;
+    int j = listOfVertices.size(); 
+
+    switch( drawMode )
+    {
+        case MGL_TRIANGLES:
+
+            // Take three vertices at a time from LoV and turn them into triangles in LoT
+            for ( unsigned i = 0; i < listOfVertices.size(); i+=3 )
+            {
+                triangle newTriangle( listOfVertices.at( i ), listOfVertices.at( i+1 ), listOfVertices.at( i+2 ) );
+
+                listOfTriangles.push_back( newTriangle );
+            }
+
+            listOfVertices.clear();
+
+            break;
+
+        case MGL_QUADS:
+
+            // Take four vertices at a time from LoV and turn them into quads in LoT
+            for ( unsigned i = 0; i < listOfVertices.size(); i+=4 )
+            {
+                // We need to handle cases
+                
+
+
+
+                /* Old Code (doesn't handle possible overlap)
+                triangle newTriangle1( listOfVertices.at( i ), listOfVertices.at( i+1 ), listOfVertices.at( i+2 ) );
+                triangle newTriangle2( listOfVertices.at( i+1 ), listOfVertices.at( i+2 ), listOfVertices.at( i+3 ) );
+            
+                listOfTriangles.push_back( newTriangle1 );
+                listOfTriangles.push_back( newTriangle2 );
+                */
+            }
+
+            listOfVertices.clear();
+
+            break;
+    }
+};
 
 /**
  * Specify a two-dimensional vertex; the x- and y-coordinates
@@ -87,7 +178,11 @@ void mglEnd()
 void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
-}
+    vec4 new_pos( x, y, 0, 1 );
+    vertex v( new_pos,currColor );
+
+    listOfVertices.push_back(v);
+};
 
 /**
  * Specify a three-dimensional vertex.  Must appear between
@@ -97,14 +192,18 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
-}
+    vec4 new_pos( x, y, z, 1 );
+    vertex v( new_pos, currColor );
+    
+    listOfVertices.push_back(v);
+};
 
 /**
  * Set the current matrix mode (modelview or projection).
  */
 void mglMatrixMode(MGLmatrix_mode mode)
 {
-}
+};
 
 /**
  * Push a copy of the current matrix onto the stack for the
@@ -112,7 +211,7 @@ void mglMatrixMode(MGLmatrix_mode mode)
  */
 void mglPushMatrix()
 {
-}
+};
 
 /**
  * Pop the top matrix from the stack for the current matrix
@@ -120,14 +219,14 @@ void mglPushMatrix()
  */
 void mglPopMatrix()
 {
-}
+};
 
 /**
  * Replace the current matrix with the identity.
  */
 void mglLoadIdentity()
 {
-}
+};
 
 /**
  * Replace the current matrix with an arbitrary 4x4 matrix,
@@ -143,7 +242,7 @@ void mglLoadIdentity()
  */
 void mglLoadMatrix(const MGLfloat *matrix)
 {
-}
+};
 
 /**
  * Multiply the current matrix by an arbitrary 4x4 matrix,
@@ -159,7 +258,7 @@ void mglLoadMatrix(const MGLfloat *matrix)
  */
 void mglMultMatrix(const MGLfloat *matrix)
 {
-}
+};
 
 /**
  * Multiply the current matrix by the translation matrix
@@ -169,7 +268,7 @@ void mglTranslate(MGLfloat x,
                   MGLfloat y,
                   MGLfloat z)
 {
-}
+};
 
 /**
  * Multiply the current matrix by the rotation matrix
@@ -181,7 +280,7 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
-}
+};
 
 /**
  * Multiply the current matrix by the scale matrix
@@ -191,7 +290,7 @@ void mglScale(MGLfloat x,
               MGLfloat y,
               MGLfloat z)
 {
-}
+};
 
 /**
  * Multiply the current matrix by the perspective matrix
@@ -204,7 +303,7 @@ void mglFrustum(MGLfloat left,
                 MGLfloat near,
                 MGLfloat far)
 {
-}
+};
 
 /**
  * Multiply the current matrix by the orthographic matrix
@@ -217,7 +316,7 @@ void mglOrtho(MGLfloat left,
               MGLfloat near,
               MGLfloat far)
 {
-}
+};
 
 /**
  * Set the current color for drawn shapes.
@@ -226,4 +325,4 @@ void mglColor(MGLfloat red,
               MGLfloat green,
               MGLfloat blue)
 {
-}
+};
