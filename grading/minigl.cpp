@@ -108,7 +108,6 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    //cout << "listOfTriangles.size() = " << listOfTriangles.size() << endl << endl;
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
     {
@@ -132,10 +131,11 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
+
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       // Make two vectors out of (a,b) and (a,c), cross them, and divide by 2 to get curr_triangle's area.
       vec3 ab, ac, bc;
-      float curr_triangle_area, areaABP, areaACP, areaBCP;
+      float curr_triangle_area, subtriABP, subtriACP, subtriBCP;
       vec3 p_color(255, 255, 255);
 
       // Create vector AB
@@ -154,13 +154,11 @@ void mglReadPixels(MGLsize width,
       bc[2] = curr_triangle.c.pos[2] - curr_triangle.b.pos[2];
 
       // We now have curr_triangle's area.
-      curr_triangle_area = ( (cross(ab, ac)).magnitude() ) / 2;
+      curr_triangle_area = ( ab.magnitude() * ac.magnitude() ) / 2;
 
-      cout << "curr_triangle_area is " << curr_triangle_area << endl << endl;
-
-      for ( int i = xmin; i < xmax; ++i )
+      for ( unsigned i = xmin; i < xmax; ++i )
       {
-        for ( int j = ymin; j < ymax; ++j )
+        for ( unsigned j = ymin; j < ymax; ++j )
         {
           vec4 p_pos(i,j,0,0);
           vertex p(p_pos, p_color);
@@ -176,19 +174,19 @@ void mglReadPixels(MGLsize width,
           bp[1] = p.pos[1] - curr_triangle.b.pos[1];
           bp[2] = p.pos[2] - curr_triangle.b.pos[2];
 
-          // Now, get the areas of subtriangles ABP, ACP, and BCP
-          areaABP = ( (cross(ab, ap)).magnitude() ) / 2;
-          areaACP = ( (cross(ac, ap)).magnitude() ) / 2;
-          areaBCP = ( (cross(bc, bp)).magnitude() ) / 2;
+          // Now, create get the areas of subtriangles ABP, ACP, and BCP
+          subtriABP = ( ab.magnitude() * ap.magnitude() ) / 2;
+          subtriACP = ( ac.magnitude() * ap.magnitude() ) / 2;
+          subtriBCP = ( bc.magnitude() * bp.magnitude() ) / 2;
 
-          // Find barycentric coordinates.
-          float alpha = areaBCP / curr_triangle_area;
-          float beta = areaACP / curr_triangle_area;
-          float gamma = areaABP / curr_triangle_area;
+          cout << "subTri sum = " << subtriABP + subtriACP + subtriBCP << endl << endl
+               << "curr_triangle_area = " << curr_triangle_area << endl << endl;
 
-          // If the barycentric coordinates fall within parameters, draw the point.
-          if ( alpha + beta + gamma <= 1.0 )
+          // If the areas of the subtriangles equal the area of the main triangle,
+          // then point p lies within the triangle ABC
+          if ( subtriABP + subtriACP + subtriBCP == curr_triangle_area )
           {
+              //data[ width * i + j ] = Make_Pixel(255,255,255);
               *(data + i + j * width) = Make_Pixel(255,255,255);
           }
         }
@@ -219,7 +217,7 @@ void mglEnd()
         case MGL_TRIANGLES:
 
             // Take three vertices at a time from LoV and turn them into triangles in LoT
-            for ( unsigned i = 0; (i + 2) < listOfVertices.size(); i+=3 )
+            for ( unsigned i = 0; (i + 3) < listOfVertices.size(); i+=3 )
             {
                 triangle newTriangle( listOfVertices.at( i ), listOfVertices.at( i+1 ), listOfVertices.at( i+2 ) );
 
@@ -232,7 +230,7 @@ void mglEnd()
 
         case MGL_QUADS:
             // Take four vertices at a time from LoV and turn them into quads in LoT
-            for ( unsigned i = 0; (i + 3) < listOfVertices.size(); i+=4 )
+            for ( unsigned i = 0; (i + 4) < listOfVertices.size(); i+=4 )
             {
                 // FIXME: This implementation does not handle the situation where the selected triangles
                 // contain overlapping space within a quad. Compile and run this to get it working, but if the
@@ -285,7 +283,6 @@ void mglVertex3(MGLfloat x,
  */
 void mglMatrixMode(MGLmatrix_mode mode)
 {
-
 };
 
 /**
@@ -309,7 +306,6 @@ void mglPopMatrix()
  */
 void mglLoadIdentity()
 {
-
 };
 
 /**
