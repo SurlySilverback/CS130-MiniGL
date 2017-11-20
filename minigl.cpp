@@ -157,15 +157,6 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      /* ORIGINAL CODE
-      curr_triangle.a.pos[0] = ( width / ( 2 * curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[0] + 1 );
-      curr_triangle.a.pos[1] = ( height / ( 2 * curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[1] + 1 );
-      curr_triangle.b.pos[0] = ( width / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[0] + 1 );
-      curr_triangle.b.pos[1] = ( height / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
-      */
-
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
       // follows for barycentric calculations. We perform casts since the values
@@ -182,78 +173,16 @@ void mglReadPixels(MGLsize width,
       */
 
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
-      // Make two vectors out of (a,b) and (a,c), cross them, and divide by 2 to get curr_triangle's area.
-
-      //vec3 ab, ac, bc;
       float curr_triangle_area, areaABP, areaACP, areaBCP;
       vec3 p_color(255, 255, 255);
 
-      /*
-      // NOTE: ORIGINAL CODE Create vector AB
-      ab[0] = curr_triangle.b.pos[0] - curr_triangle.a.pos[0];
-      ab[1] = curr_triangle.b.pos[1] - curr_triangle.a.pos[1];
-      ab[2] = curr_triangle.b.pos[2] - curr_triangle.a.pos[2];
-
-      // NOTE: ORIGINAL CODE Create vector AC
-      ac[0] = curr_triangle.c.pos[0] - curr_triangle.a.pos[0];
-      ac[1] = curr_triangle.c.pos[1] - curr_triangle.a.pos[1];
-      ac[2] = curr_triangle.c.pos[2] - curr_triangle.a.pos[2];
-
-      // NOTE: ORIGINAL CODE Create vector BC -- we'll use this later so make it here
-      bc[0] = curr_triangle.c.pos[0] - curr_triangle.b.pos[0];
-      bc[1] = curr_triangle.c.pos[1] - curr_triangle.b.pos[1];
-      bc[2] = curr_triangle.c.pos[2] - curr_triangle.b.pos[2];
-
-      // NOTE: ORIGINAL CODE We now have curr_triangle's area.
-      curr_triangle_area = ( (cross(ab, ac)).magnitude() ) / 2;
-      cout << "curr_triangle_area per cross(): " << curr_triangle_area << endl;*/
-
-
-      // NOTE: This area calculation pairs with the EXPERIMENTAL CODE BLOCK BELOW
       curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
-      cout << "curr_triangle_area per area(): " << curr_triangle_area << endl;
-
 
       // For the constraints of our bounding box...
       for ( int i = xmin; i < xmax; ++i )
       {
         for ( int j = ymin; j < ymax; ++j )
         {
-          /*
-          //cout << "Beginning for-loop for (i,j) = (" << i << ',' << j << ")" << endl;
-
-          // NOTE: ORIGINAL METHOD, but it's now broken
-          vec4 p_pos(i,j,0,1);
-          vertex p(p_pos, p_color);
-          vec3 ap, bp;
-
-          // Create vector AP
-          ap[0] = p.pos[0] - curr_triangle.a.pos[0];
-          ap[1] = p.pos[1] - curr_triangle.a.pos[1];
-          ap[2] = p.pos[2] - curr_triangle.a.pos[2];
-
-          // Create vector BP
-          bp[0] = p.pos[0] - curr_triangle.b.pos[0];
-          bp[1] = p.pos[1] - curr_triangle.b.pos[1];
-          bp[2] = p.pos[2] - curr_triangle.b.pos[2];
-
-          // Now, get the areas of subtriangles ABP, ACP, and BCP
-          areaABP = ( (cross(ab, ap)).magnitude() ) / 2.0f;
-          areaACP = ( (cross(ac, ap)).magnitude() ) / 2.0f;
-          areaBCP = ( (cross(bc, bp)).magnitude() ) / 2.0f;
-
-          // Find barycentric coordinates.
-          float alpha = areaBCP / curr_triangle_area;
-          float beta = areaACP / curr_triangle_area;
-          float gamma = areaABP / curr_triangle_area;
-          */
-
-
-
-
-
-          //// NOTE: Alternate experimental method for calculating pixels //////
-          // INSIDE DOUBLE FOR-LOOP
           vec4 p_pos(i,j,0,1);
           vertex p(p_pos, p_color);
 
@@ -264,9 +193,6 @@ void mglReadPixels(MGLsize width,
           float alpha = areaBCP / curr_triangle_area;
           float beta = areaACP / curr_triangle_area;
           float gamma = areaABP / curr_triangle_area;
-
-
-
 
           if ( alpha + beta + gamma <= 1.002f ) //FIXME: ORIGINAL CODE
           //if ( areaBCP + areaACP + areaABP == curr_triangle_area )
