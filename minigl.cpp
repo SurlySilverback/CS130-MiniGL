@@ -107,7 +107,7 @@ stack<mat4> currentModViewMatrix;
 MGLfloat area( vertex a, vertex b, vertex c)
 {
     //area(abc) = a_x * ( b_y - c_y ) + a_y * ( c_x - b_x ) + ( b_x * c_y - b_y * c_x );
-    return ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) );
+    return ( abs ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) ) );
 }
 
 
@@ -140,22 +140,38 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    //cout << "mglReadPixels(): listOfTriangles.size() = " << listOfTriangles.size() << endl << endl;
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
     {
       // ...grab the positions of its vertices and store it in a local triangle obj...
       triangle curr_triangle = listOfTriangles.at(n);
 
+      cout << "Vertices a, b, c in object space" << endl
+           << "================================" << endl
+           << "a: " << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ", " << curr_triangle.a.pos[3] << endl
+           << "b: " << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ", " << curr_triangle.b.pos[3] << endl
+           << "c: " << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ", " << curr_triangle.c.pos[3] << endl << endl;
+
+      // Divide by the w value for homogeneous coordinates
+      curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
+      curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
+      curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
+
       // ...translate the object coords of the temp vertices into display coords...
       // x = ( width / 2w ) ( x + 1 )
       // y = ( height / 2w ) ( y + 1 )
-      curr_triangle.a.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[0] + 1 );
-      curr_triangle.a.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[1] + 1 );
-      curr_triangle.b.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[0] + 1 );
-      curr_triangle.b.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
+      curr_triangle.a.pos[0] = ( width * (0.5f) ) * ( curr_triangle.a.pos[0] + 1 );
+      curr_triangle.a.pos[1] = ( height * (0.5f) ) * ( curr_triangle.a.pos[1] + 1 );
+      curr_triangle.b.pos[0] = ( width * (0.5f) ) * ( curr_triangle.b.pos[0] + 1 );
+      curr_triangle.b.pos[1] = ( height * (0.5f) ) * ( curr_triangle.b.pos[1] + 1 );
+      curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
+      curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
+
+      cout << "Vertices a, b, c in display space" << endl
+           << "=================================" << endl
+           << "a: " << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ", " << curr_triangle.a.pos[3] << endl
+           << "b: " << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ", " << curr_triangle.b.pos[3] << endl
+           << "c: " << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ", " << curr_triangle.c.pos[3] << endl << endl;
 
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
@@ -166,11 +182,8 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
-      /*
-      cout << "After the bounding box calculation." << endl
-           << "(xmin,xmax) = (" << xmin << "," << xmax << ")" << endl
-           << "(ymin,ymax) = (" << ymin << "," << ymax << ")" << endl << endl;
-      */
+
+
 
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       float curr_triangle_area, areaABP, areaACP, areaBCP;
@@ -186,18 +199,25 @@ void mglReadPixels(MGLsize width,
           vec4 p_pos(i,j,0,1);
           vertex p(p_pos, p_color);
 
+          //*(data + i + j * width) = Make_Pixel(255,255,255);
+
+          // Find the area of three component triangles inside ABC using point P at (i,j)
           areaABP = area( curr_triangle.a, curr_triangle.b, p );
           areaACP = area( curr_triangle.a, curr_triangle.c, p );
           areaBCP = area( curr_triangle.b, curr_triangle.c, p );
 
-          float alpha = areaBCP / curr_triangle_area;
-          float beta = areaACP / curr_triangle_area;
-          float gamma = areaABP / curr_triangle_area;
+          //float alpha = areaBCP / curr_triangle_area;
+          //float beta = areaACP / curr_triangle_area;
+          //float gamma = areaABP / curr_triangle_area;
 
-          if ( alpha + beta + gamma <= 1.002f ) //FIXME: ORIGINAL CODE
-          //if ( areaBCP + areaACP + areaABP == curr_triangle_area )
+          //if ( alpha + beta + gamma <= 1.0f )
+          if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           {
               *(data + i + j * width) = Make_Pixel(255,255,255);
+
+              //cout << "For i = " << i << ", j = " << j << endl
+              //     << "alpha + beta + gamma = " << alpha + beta + gamma << endl << endl;
+
           }
         }
       }
@@ -453,17 +473,14 @@ void mglFrustum(MGLfloat left,
 
   frustum.make_zero();
 
-  // Check for segfault-causing values before applying calculations
-  if ( ( near > 0 ) && ( far > 0 ) && ( left != right ) && ( bottom != top ) && ( near != far ) )
-  {
-    frustum.values[0] = ( 2.0f * near ) / ( right - left );
-    frustum.values[5] = ( 2.0f * near ) / ( top - bottom );
-    frustum.values[8] = ( right + left ) / ( right - left );
-    frustum.values[9] = ( top + bottom ) / ( top - bottom );
-    frustum.values[10] = -( far + near ) / ( far - near );
-    frustum.values[11] = -1.0f;
-    frustum.values[14] = -( 2.0f * far * near ) / ( far - near );
-  }
+  // Create the perspectiveprojection (frustum) matrix
+  frustum.values[0] = ( 2.0f * near ) / ( right - left );
+  frustum.values[5] = ( 2.0f * near ) / ( top - bottom );
+  frustum.values[8] = ( right + left ) / ( right - left );
+  frustum.values[9] = ( top + bottom ) / ( top - bottom );
+  frustum.values[10] = -( far + near ) / ( far - near );
+  frustum.values[11] = -1.0f;
+  frustum.values[14] = -( 2.0f * far * near ) / ( far - near );
 
   stack<mat4> *matRef = getMatrixModeRef();
 
@@ -471,6 +488,9 @@ void mglFrustum(MGLfloat left,
     mglLoadIdentity();
 
   matRef->top() = frustum * matRef->top();
+
+  cout << "mglFrustum(): matRef->top() = " << matRef->top() << endl << endl;
+
 };
 
 /**
@@ -488,16 +508,14 @@ void mglOrtho(MGLfloat left,
 
   ortho.make_zero();
 
-  if ( ( near > 0 ) && ( far > 0 ) && ( left != right ) && ( bottom != top ) && ( near != far ) )
-  {
-    ortho.values[0] = 2.0f / (right - left);
-    ortho.values[5] = 2.0f / (top - bottom);
-    ortho.values[10] = -(2.0f) / (far - near);
-    ortho.values[12] = -(right + left) / (right - left);
-    ortho.values[13] = -(top + bottom) / (top - bottom);
-    ortho.values[14] = -(far + near) / (far - near);
-    ortho.values[15] = 1.0f;
-  }
+  // Create the orthographic matrix
+  ortho.values[0] = 2.0f / (right - left);
+  ortho.values[5] = 2.0f / (top - bottom);
+  ortho.values[10] = -(2.0f) / (far - near);
+  ortho.values[12] = -(right + left) / (right - left);
+  ortho.values[13] = -(top + bottom) / (top - bottom);
+  ortho.values[14] = -(far + near) / (far - near);
+  ortho.values[15] = 1.0f;
 
   stack<mat4> *matRef = getMatrixModeRef();
 
