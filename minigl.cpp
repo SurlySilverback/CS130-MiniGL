@@ -216,9 +216,6 @@ void mglBegin(MGLpoly_mode mode)
  */
 void mglEnd()
 {
-    //int i = 0;
-    //int j = listOfVertices.size();
-
     switch( drawMode )
     {
         case MGL_TRIANGLES:
@@ -336,6 +333,11 @@ void mglMatrixMode(MGLmatrix_mode mode)
  */
 void mglPushMatrix()
 {
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  mat4 newMat = matRef->top();
+
+  matRef->push( newMat );
 };
 
 /**
@@ -344,6 +346,12 @@ void mglPushMatrix()
  */
 void mglPopMatrix()
 {
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( !( matRef->empty() ) )
+  {
+    matRef->pop();
+  }
 };
 
 /**
@@ -432,6 +440,21 @@ void mglScale(MGLfloat x,
               MGLfloat y,
               MGLfloat z)
 {
+  mat4 scale;
+
+  scale.make_zero();
+
+  scale.values[0] = x;
+  scale.values[5] = y;
+  scale.values[10] = z;
+  scale.values[15] = 1.0f;
+
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( !(matRef->empty()) )
+  {
+      matRef->top() = scale * matRef->top();
+  }
 };
 
 /**

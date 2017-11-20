@@ -45,7 +45,9 @@ inline void MGL_ERROR(const char* description) {
 }
 
 
-/*************** Basic Structures ***************/
+/*******************************************************************************
+ BASIC STRUCTURES
+*******************************************************************************/
 
 // Vertex
 struct vertex
@@ -58,7 +60,6 @@ struct vertex
     vertex(vec4 pos, vec3 color) : pos(pos), color(color) {}
 };
 
-
 // Triangle
 struct triangle
 {
@@ -69,8 +70,9 @@ struct triangle
     triangle(vertex v1, vertex v2, vertex v3) : a(v1), b(v2), c(v3) {}
 };
 
-
-/********** Variables **********/
+/*******************************************************************************
+ VARIABLES
+*******************************************************************************/
 
 // drawMode
 MGLpoly_mode drawMode;
@@ -87,13 +89,40 @@ vec3 currColor;
 // listOfTriangles
 vector<triangle> listOfTriangles;
 
+/*******************************************************************************
+ DATA STRUCTURES
+ ******************************************************************************/
 
-/********** Data Structures **********/
+// Projection Stack
+stack<mat4> currentProjMatrix;
 
-stack<mat4> currentMatrix;
+// Model View Stack
+stack<mat4> currentModViewMatrix;
+
+/*******************************************************************************
+ FUNCTIONS
+*******************************************************************************/
+
+// area() takes in three vertex objects and returns the area of the triangle
+MGLfloat area( vertex a, vertex b, vertex c)
+{
+    //area(abc) = a_x * ( b_y - c_y ) + a_y * ( c_x - b_x ) + ( b_x * c_y - b_y * c_x );
+    return ( abs ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) ) );
+}
 
 
-/********** Functions **********/
+stack<mat4> * getMatrixModeRef()
+{
+  stack<mat4> *value;
+
+  if ( matrixMode == MGL_PROJECTION )
+    value = &currentProjMatrix;
+
+  else
+    value = &currentModViewMatrix;
+
+  return value;
+}
 
 /**
  * Read pixel data starting with the pixel at coordinates
@@ -111,20 +140,26 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    //cout << "listOfTriangles.size() = " << listOfTriangles.size() << endl << endl;
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
     {
       // ...grab the positions of its vertices and store it in a local triangle obj...
       triangle curr_triangle = listOfTriangles.at(n);
 
+      // Divide by the w value for homogeneous coordinates ( (x/w), (y/w), (z/w), 1 )
+      curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
+      curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
+      curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
+
       // ...translate the object coords of the temp vertices into display coords...
-      curr_triangle.a.pos[0] = ( width / 2 ) * ( curr_triangle.a.pos[0] + 1 );
-      curr_triangle.a.pos[1] = ( height / 2 ) * ( curr_triangle.a.pos[1] + 1 );
-      curr_triangle.b.pos[0] = ( width / 2 ) * ( curr_triangle.b.pos[0] + 1 );
-      curr_triangle.b.pos[1] = ( height / 2 ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width / 2 ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height / 2 ) * ( curr_triangle.c.pos[1] + 1 );
+      // x = ( width / 2w ) ( x + 1 )
+      // y = ( height / 2w ) ( y + 1 )
+      curr_triangle.a.pos[0] = ( width * (0.5f) ) * ( curr_triangle.a.pos[0] + 1 );
+      curr_triangle.a.pos[1] = ( height * (0.5f) ) * ( curr_triangle.a.pos[1] + 1 );
+      curr_triangle.b.pos[0] = ( width * (0.5f) ) * ( curr_triangle.b.pos[0] + 1 );
+      curr_triangle.b.pos[1] = ( height * (0.5f) ) * ( curr_triangle.b.pos[1] + 1 );
+      curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
+      curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
@@ -136,69 +171,35 @@ void mglReadPixels(MGLsize width,
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
-      // Make two vectors out of (a,b) and (a,c), cross them, and divide by 2 to get curr_triangle's area.
-      vec3 ab, ac, bc;
       float curr_triangle_area, areaABP, areaACP, areaBCP;
-      vec3 p_color(255, 255, 255);
+      vec3 p_color = curr_triangle.a.color;
 
-      // Create vector AB
-      ab[0] = curr_triangle.b.pos[0] - curr_triangle.a.pos[0];
-      ab[1] = curr_triangle.b.pos[1] - curr_triangle.a.pos[1];
-      ab[2] = curr_triangle.b.pos[2] - curr_triangle.a.pos[2];
-
-      // Create vector AC
-      ac[0] = curr_triangle.c.pos[0] - curr_triangle.a.pos[0];
-      ac[1] = curr_triangle.c.pos[1] - curr_triangle.a.pos[1];
-      ac[2] = curr_triangle.c.pos[2] - curr_triangle.a.pos[2];
-
-      // Create vector BC -- we'll use this later so make it here
-      bc[0] = curr_triangle.c.pos[0] - curr_triangle.b.pos[0];
-      bc[1] = curr_triangle.c.pos[1] - curr_triangle.b.pos[1];
-      bc[2] = curr_triangle.c.pos[2] - curr_triangle.b.pos[2];
-
-      // We now have curr_triangle's area.
-      curr_triangle_area = ( (cross(ab, ac)).magnitude() ) / 2;
-
-      //cout << "curr_triangle_area is " << curr_triangle_area << endl << endl;
+      curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
 
       // For the constraints of our bounding box...
       for ( int i = xmin; i < xmax; ++i )
       {
         for ( int j = ymin; j < ymax; ++j )
         {
-          vec4 p_pos(i,j,0,0);
+          vec4 p_pos(i,j,0,1);
           vertex p(p_pos, p_color);
-          vec3 ap, bp;
 
-          // Create vector AP
-          ap[0] = p.pos[0] - curr_triangle.a.pos[0];
-          ap[1] = p.pos[1] - curr_triangle.a.pos[1];
-          ap[2] = p.pos[2] - curr_triangle.a.pos[2];
+          // Find the area of three component triangles inside ABC using point P at (i,j)
+          areaABP = area( curr_triangle.a, curr_triangle.b, p );
+          areaACP = area( curr_triangle.a, curr_triangle.c, p );
+          areaBCP = area( curr_triangle.b, curr_triangle.c, p );
 
-          // Create vector BP
-          bp[0] = p.pos[0] - curr_triangle.b.pos[0];
-          bp[1] = p.pos[1] - curr_triangle.b.pos[1];
-          bp[2] = p.pos[2] - curr_triangle.b.pos[2];
-
-          // Now, get the areas of subtriangles ABP, ACP, and BCP
-          areaABP = ( (cross(ab, ap)).magnitude() ) / 2;
-          areaACP = ( (cross(ac, ap)).magnitude() ) / 2;
-          areaBCP = ( (cross(bc, bp)).magnitude() ) / 2;
-
-          // Find barycentric coordinates.
-          float alpha = areaBCP / curr_triangle_area;
-          float beta = areaACP / curr_triangle_area;
-          float gamma = areaABP / curr_triangle_area;
-
-          // If the barycentric coordinates fall within parameters, draw the point.
-          if ( alpha + beta + gamma <= 1.0 )
+          // If the sum of the subtriangle areas are less than or equal to main triangle area,
+          // then point p at (i,j) lies inside the main triangle. Draw it.
+          if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           {
-              *(data + i + j * width) = Make_Pixel(255,255,255);
+              *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
         }
       }
     }
 };
+
 
 /**
  * Start specifying the vertices for a group of primitives,
@@ -242,8 +243,9 @@ void mglEnd()
                 // contain overlapping space within a quad. Compile and run this to get it working, but if the
                 // final version has clipping issues, consider this logic as one of the solution spaces for
                 // fixing the issue.
+
                 triangle newTriangle1( listOfVertices.at( i ), listOfVertices.at( i+1 ), listOfVertices.at( i+2 ) );
-                triangle newTriangle2( listOfVertices.at( i+1 ), listOfVertices.at( i+2 ), listOfVertices.at( i+3 ) );
+                triangle newTriangle2( listOfVertices.at( i ), listOfVertices.at( i+2 ), listOfVertices.at( i+3 ) );
 
                 listOfTriangles.push_back( newTriangle1 );
                 listOfTriangles.push_back( newTriangle2 );
@@ -264,14 +266,27 @@ void mglEnd()
 void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
-    vec4 new_pos( x, y, 0, 1 );
-    vertex v( new_pos,currColor );
+    // Create a container for the new 2D vertex.
+    vec4 new_pos( x, y, 0, 1.0f );
 
-    if ( !currentMatrix.empty() )
+    // If the model view matrix stack is not empty, multiply the vertex by the matrix
+    // at the top of the stack.
+    if ( !( currentModViewMatrix.empty() ) )
     {
-      new_pos = currentMatrix.top() * new_pos;
+      new_pos = currentModViewMatrix.top() * new_pos;
     }
 
+    // If the projection matrix stack is not empty, multiply the vertex by the matrix
+    // at the top of the stack.
+    if ( !( currentProjMatrix.empty() ) )
+    {
+      new_pos = currentProjMatrix.top() * new_pos;
+    }
+
+    // Give the vertex colour.
+    vertex v( new_pos,currColor );
+
+    // Push it into the list of vertices.
     listOfVertices.push_back(v);
 };
 
@@ -283,15 +298,27 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
-    vec4 new_pos( x, y, z, 1 );
+    // Create a container for the new 2D vertex.
+    vec4 new_pos( x, y, z, 1.0f );
 
-    if ( !currentMatrix.empty() )
+    // If the model view matrix stack is not empty, multiply the vertex by the matrix
+    // at the top of the stack.
+    if ( !( currentModViewMatrix.empty() ) )
     {
-      new_pos = currentMatrix.top() * new_pos;
+      new_pos = currentModViewMatrix.top() * new_pos;
     }
 
+    // If the projection matrix stack is not empty, multiply the vertex by the matrix
+    // at the top of the stack.
+    if ( !( currentProjMatrix.empty() ) )
+    {
+      new_pos = currentProjMatrix.top() * new_pos;
+    }
+
+    // Give the vertex colour.
     vertex v( new_pos, currColor );
 
+    // Push it into the list of vertices.
     listOfVertices.push_back(v);
 };
 
@@ -325,19 +352,22 @@ void mglPopMatrix()
 void mglLoadIdentity()
 {
   mat4 id;
-  MGLfloat one = 1.0;
+
+  stack<mat4> *matRef = getMatrixModeRef();
 
   id.make_zero();
 
-  id.values[0] = one;
-  id.values[5] = one;
-  id.values[10] = one;
-  id.values[15] = one;
+  id.values[0] = 1.0f;
+  id.values[5] = 1.0f;
+  id.values[10] = 1.0f;
+  id.values[15] = 1.0f;
 
-  //cout << "id matrix is: " << endl
-  //     << id << endl;
-
-  currentMatrix.push(id);
+  if ( matRef->empty() )
+  {
+    matRef->push(id);
+  }
+  else
+    matRef->top() = id;
 };
 
 /**
@@ -415,6 +445,25 @@ void mglFrustum(MGLfloat left,
                 MGLfloat near,
                 MGLfloat far)
 {
+  mat4 frustum;
+
+  frustum.make_zero();
+
+  // Create the perspectiveprojection (frustum) matrix
+  frustum.values[0] = ( 2.0f * near ) / ( right - left );
+  frustum.values[5] = ( 2.0f * near ) / ( top - bottom );
+  frustum.values[8] = ( right + left ) / ( right - left );
+  frustum.values[9] = ( top + bottom ) / ( top - bottom );
+  frustum.values[10] = -( far + near ) / ( far - near );
+  frustum.values[11] = -1.0f;
+  frustum.values[14] = -( 2.0f * far * near ) / ( far - near );
+
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( matRef->empty() )
+    mglLoadIdentity();
+
+  matRef->top() = frustum * matRef->top();
 };
 
 /**
@@ -429,19 +478,24 @@ void mglOrtho(MGLfloat left,
               MGLfloat far)
 {
   mat4 ortho;
-  MGLfloat one = 1.0, two = 2.0;
 
   ortho.make_zero();
 
-  ortho.values[0] = two / (right - left);
-  ortho.values[5] = two / (top - bottom);
-  ortho.values[10] = -(two) / (far - near);
+  // Create the orthographic matrix
+  ortho.values[0] = 2.0f / (right - left);
+  ortho.values[5] = 2.0f / (top - bottom);
+  ortho.values[10] = -(2.0f) / (far - near);
   ortho.values[12] = -(right + left) / (right - left);
   ortho.values[13] = -(top + bottom) / (top - bottom);
   ortho.values[14] = -(far + near) / (far - near);
-  ortho.values[15] = one;
+  ortho.values[15] = 1.0f;
 
-  currentMatrix.top() = ortho * currentMatrix.top();
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( matRef->empty() )
+    mglLoadIdentity();
+
+  matRef->top() = ortho * matRef->top();
 };
 
 /**
@@ -451,10 +505,9 @@ void mglColor(MGLfloat red,
               MGLfloat green,
               MGLfloat blue)
 {
-
-  currColor.values[0] = red;
-  currColor.values[1] = green;
-  currColor.values[2] = blue;
+  currColor.values[0] = red; //red
+  currColor.values[1] = green; //green
+  currColor.values[2] = blue; //blue
 };
 
 void mglColor( vec3 color )
