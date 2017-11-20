@@ -146,13 +146,7 @@ void mglReadPixels(MGLsize width,
       // ...grab the positions of its vertices and store it in a local triangle obj...
       triangle curr_triangle = listOfTriangles.at(n);
 
-      cout << "Vertices a, b, c in object space" << endl
-           << "================================" << endl
-           << "a: " << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ", " << curr_triangle.a.pos[3] << endl
-           << "b: " << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ", " << curr_triangle.b.pos[3] << endl
-           << "c: " << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ", " << curr_triangle.c.pos[3] << endl << endl;
-
-      // Divide by the w value for homogeneous coordinates
+      // Divide by the w value for homogeneous coordinates ( (x/w), (y/w), (z/w), 1 )
       curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
       curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
       curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
@@ -167,12 +161,6 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      cout << "Vertices a, b, c in display space" << endl
-           << "=================================" << endl
-           << "a: " << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ", " << curr_triangle.a.pos[3] << endl
-           << "b: " << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ", " << curr_triangle.b.pos[3] << endl
-           << "c: " << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ", " << curr_triangle.c.pos[3] << endl << endl;
-
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
       // follows for barycentric calculations. We perform casts since the values
@@ -182,12 +170,9 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
-
-
-
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       float curr_triangle_area, areaABP, areaACP, areaBCP;
-      vec3 p_color(255, 255, 255);
+      vec3 p_color( 255, 255, 255 );
 
       curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
 
@@ -199,25 +184,16 @@ void mglReadPixels(MGLsize width,
           vec4 p_pos(i,j,0,1);
           vertex p(p_pos, p_color);
 
-          //*(data + i + j * width) = Make_Pixel(255,255,255);
-
           // Find the area of three component triangles inside ABC using point P at (i,j)
           areaABP = area( curr_triangle.a, curr_triangle.b, p );
           areaACP = area( curr_triangle.a, curr_triangle.c, p );
           areaBCP = area( curr_triangle.b, curr_triangle.c, p );
 
-          //float alpha = areaBCP / curr_triangle_area;
-          //float beta = areaACP / curr_triangle_area;
-          //float gamma = areaABP / curr_triangle_area;
-
-          //if ( alpha + beta + gamma <= 1.0f )
+          // If the sum of the subtriangle areas are less than or equal to main triangle area,
+          // then point p at (i,j) lies inside the main triangle. Draw it.
           if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           {
-              *(data + i + j * width) = Make_Pixel(255,255,255);
-
-              //cout << "For i = " << i << ", j = " << j << endl
-              //     << "alpha + beta + gamma = " << alpha + beta + gamma << endl << endl;
-
+              *(data + i + j * width) = Make_Pixel( currColor[0]* 255, currColor[1] * 255, currColor[2] * 255 );
           }
         }
       }
@@ -488,9 +464,6 @@ void mglFrustum(MGLfloat left,
     mglLoadIdentity();
 
   matRef->top() = frustum * matRef->top();
-
-  cout << "mglFrustum(): matRef->top() = " << matRef->top() << endl << endl;
-
 };
 
 /**
