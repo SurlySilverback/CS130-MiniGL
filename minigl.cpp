@@ -153,8 +153,8 @@ void mglReadPixels(MGLsize width,
       curr_triangle.a.pos[1] = ( height / ( 2 * curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[1] + 1 );
       curr_triangle.b.pos[0] = ( width / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[0] + 1 );
       curr_triangle.b.pos[1] = ( height / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
+      curr_triangle.c.pos[0] = ( width / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
+      curr_triangle.c.pos[1] = ( height / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
 
 /*
       cout << "After the object-to-display conversion." << endl << endl
