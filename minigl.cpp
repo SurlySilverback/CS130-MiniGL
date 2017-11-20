@@ -103,6 +103,14 @@ stack<mat4> currentModViewMatrix;
  FUNCTIONS
 *******************************************************************************/
 
+// area() takes in three vertex objects and returns the area of the triangle
+MGLfloat area( vertex a, vertex b, vertex c)
+{
+    //area(abc) = a_x * ( b_y - c_y ) + a_y * ( c_x - b_x ) + ( b_x * c_y - b_y * c_x );
+    return ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) );
+}
+
+
 stack<mat4> * getMatrixModeRef()
 {
   stack<mat4> *value;
@@ -139,30 +147,24 @@ void mglReadPixels(MGLsize width,
       // ...grab the positions of its vertices and store it in a local triangle obj...
       triangle curr_triangle = listOfTriangles.at(n);
 
-/*
-      cout << "Before the object-to-display conversion." << endl << endl
-
-           << "Triangle ABC coordinates:" << endl
-           << "Vertex A: (" << curr_triangle.a.pos[0] << "," << curr_triangle.a.pos[1] << "," << curr_triangle.a.pos[2] << "," << curr_triangle.a.pos[3] << ")" << endl
-           << "Vertex B: (" << curr_triangle.b.pos[0] << "," << curr_triangle.b.pos[1] << "," << curr_triangle.b.pos[2] << "," << curr_triangle.b.pos[3] << ")" << endl
-           << "Vertex C: (" << curr_triangle.c.pos[0] << "," << curr_triangle.c.pos[1] << "," << curr_triangle.c.pos[2] << "," << curr_triangle.c.pos[3] << ")" << endl << endl;
-*/
-
       // ...translate the object coords of the temp vertices into display coords...
+      // x = ( width / 2w ) ( x + 1 )
+      // y = ( height / 2w ) ( y + 1 )
+      curr_triangle.a.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[0] + 1 );
+      curr_triangle.a.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[1] + 1 );
+      curr_triangle.b.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[0] + 1 );
+      curr_triangle.b.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[1] + 1 );
+      curr_triangle.c.pos[0] = ( width * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
+      curr_triangle.c.pos[1] = ( height * (0.5f) * ( 1/curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
+
+      /* ORIGINAL CODE
       curr_triangle.a.pos[0] = ( width / ( 2 * curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[0] + 1 );
       curr_triangle.a.pos[1] = ( height / ( 2 * curr_triangle.a.pos[3] ) ) * ( curr_triangle.a.pos[1] + 1 );
       curr_triangle.b.pos[0] = ( width / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[0] + 1 );
       curr_triangle.b.pos[1] = ( height / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height / ( 2 * curr_triangle.b.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
-
-/*
-      cout << "After the object-to-display conversion." << endl << endl
-           << "Triangle ABC coordinates:" << endl
-           << "Vertex A: (" << curr_triangle.a.pos[0] << "," << curr_triangle.a.pos[1] << "," << curr_triangle.a.pos[2] << "," << curr_triangle.a.pos[3] << ")" << endl
-           << "Vertex B: (" << curr_triangle.b.pos[0] << "," << curr_triangle.b.pos[1] << "," << curr_triangle.b.pos[2] << "," << curr_triangle.b.pos[3] << ")" << endl
-           << "Vertex C: (" << curr_triangle.c.pos[0] << "," << curr_triangle.c.pos[1] << "," << curr_triangle.c.pos[2] << "," << curr_triangle.c.pos[3] << ")" << endl << endl;
-*/
+      curr_triangle.c.pos[0] = ( width / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[0] + 1 );
+      curr_triangle.c.pos[1] = ( height / ( 2 * curr_triangle.c.pos[3] ) ) * ( curr_triangle.c.pos[1] + 1 );
+      */
 
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
@@ -173,44 +175,54 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
+      /*
       cout << "After the bounding box calculation." << endl
            << "(xmin,xmax) = (" << xmin << "," << xmax << ")" << endl
            << "(ymin,ymax) = (" << ymin << "," << ymax << ")" << endl << endl;
+      */
 
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       // Make two vectors out of (a,b) and (a,c), cross them, and divide by 2 to get curr_triangle's area.
-      vec3 ab, ac, bc;
+
+      //vec3 ab, ac, bc;
       float curr_triangle_area, areaABP, areaACP, areaBCP;
       vec3 p_color(255, 255, 255);
 
-      // Create vector AB
+      /*
+      // NOTE: ORIGINAL CODE Create vector AB
       ab[0] = curr_triangle.b.pos[0] - curr_triangle.a.pos[0];
       ab[1] = curr_triangle.b.pos[1] - curr_triangle.a.pos[1];
       ab[2] = curr_triangle.b.pos[2] - curr_triangle.a.pos[2];
 
-      // Create vector AC
+      // NOTE: ORIGINAL CODE Create vector AC
       ac[0] = curr_triangle.c.pos[0] - curr_triangle.a.pos[0];
       ac[1] = curr_triangle.c.pos[1] - curr_triangle.a.pos[1];
       ac[2] = curr_triangle.c.pos[2] - curr_triangle.a.pos[2];
 
-      // Create vector BC -- we'll use this later so make it here
+      // NOTE: ORIGINAL CODE Create vector BC -- we'll use this later so make it here
       bc[0] = curr_triangle.c.pos[0] - curr_triangle.b.pos[0];
       bc[1] = curr_triangle.c.pos[1] - curr_triangle.b.pos[1];
       bc[2] = curr_triangle.c.pos[2] - curr_triangle.b.pos[2];
 
-      //cout << "After creating vectors AB, AC, and BC." << endl << endl;
-
-      // We now have curr_triangle's area.
+      // NOTE: ORIGINAL CODE We now have curr_triangle's area.
       curr_triangle_area = ( (cross(ab, ac)).magnitude() ) / 2;
+      cout << "curr_triangle_area per cross(): " << curr_triangle_area << endl;*/
 
-      //cout << "After finding area of ABC." << endl << endl;
+
+      // NOTE: This area calculation pairs with the EXPERIMENTAL CODE BLOCK BELOW
+      curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
+      cout << "curr_triangle_area per area(): " << curr_triangle_area << endl;
+
 
       // For the constraints of our bounding box...
       for ( int i = xmin; i < xmax; ++i )
       {
         for ( int j = ymin; j < ymax; ++j )
         {
+          /*
           //cout << "Beginning for-loop for (i,j) = (" << i << ',' << j << ")" << endl;
+
+          // NOTE: ORIGINAL METHOD, but it's now broken
           vec4 p_pos(i,j,0,1);
           vertex p(p_pos, p_color);
           vec3 ap, bp;
@@ -225,42 +237,44 @@ void mglReadPixels(MGLsize width,
           bp[1] = p.pos[1] - curr_triangle.b.pos[1];
           bp[2] = p.pos[2] - curr_triangle.b.pos[2];
 
-          //cout << "After calculating vectors AP and BP." << endl << endl;
-
           // Now, get the areas of subtriangles ABP, ACP, and BCP
-          areaABP = ( (cross(ab, ap)).magnitude() ) / 2;
-          areaACP = ( (cross(ac, ap)).magnitude() ) / 2;
-          areaBCP = ( (cross(bc, bp)).magnitude() ) / 2;
-
-          //cout << "After calculating subtriangle areas." << endl << endl;
-
-          /* NOTE: ANOTHER WAY TO FIND AREA - POSSIBLY FASTER
-             Consider using this to speed up raster for the stress test
-
-          area(abc) = a_x * ( b_y - c_y ) + a_y * ( c_x - b_x ) + ( b_x * c_y - b_y * c_x );
-
-          ********************************************/
+          areaABP = ( (cross(ab, ap)).magnitude() ) / 2.0f;
+          areaACP = ( (cross(ac, ap)).magnitude() ) / 2.0f;
+          areaBCP = ( (cross(bc, bp)).magnitude() ) / 2.0f;
 
           // Find barycentric coordinates.
           float alpha = areaBCP / curr_triangle_area;
           float beta = areaACP / curr_triangle_area;
           float gamma = areaABP / curr_triangle_area;
+          */
 
-          //cout << "After calculating alpha, beta, gamma." << endl;
 
-          if ( alpha + beta + gamma <= 1.015f )
+
+
+
+          //// NOTE: Alternate experimental method for calculating pixels //////
+          // INSIDE DOUBLE FOR-LOOP
+          vec4 p_pos(i,j,0,1);
+          vertex p(p_pos, p_color);
+
+          areaABP = area( curr_triangle.a, curr_triangle.b, p );
+          areaACP = area( curr_triangle.a, curr_triangle.c, p );
+          areaBCP = area( curr_triangle.b, curr_triangle.c, p );
+
+          float alpha = areaBCP / curr_triangle_area;
+          float beta = areaACP / curr_triangle_area;
+          float gamma = areaABP / curr_triangle_area;
+
+
+
+
+          if ( alpha + beta + gamma <= 1.002f ) //FIXME: ORIGINAL CODE
+          //if ( areaBCP + areaACP + areaABP == curr_triangle_area )
           {
-              //cout << "(width,height) are (" << width << ", " << height << ")" << endl;
-              //cout << "Setting pixel (" << i << "," << j << ")" << endl;
               *(data + i + j * width) = Make_Pixel(255,255,255);
-              //cout << "Pixel (" << i << "," << j << ") was set successfully." << endl << endl;
           }
-
-          //cout << "Completed for-loop for (i,j) = (" << i << ',' << j << ")" << endl << endl;
         }
       }
-
-      //cout << "After the readPixel double-for loop, at the end." << endl << endl;
     }
 };
 
@@ -331,7 +345,7 @@ void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
     // Create a container for the new 2D vertex.
-    vec4 new_pos( x, y, 0, 1 );
+    vec4 new_pos( x, y, 0, 1.0f );
 
     // If the model view matrix stack is not empty, multiply the vertex by the matrix
     // at the top of the stack.
@@ -363,7 +377,7 @@ void mglVertex3(MGLfloat x,
                 MGLfloat z)
 {
     // Create a container for the new 2D vertex.
-    vec4 new_pos( x, y, z, 1 );
+    vec4 new_pos( x, y, z, 1.0f );
 
     // If the model view matrix stack is not empty, multiply the vertex by the matrix
     // at the top of the stack.
@@ -425,9 +439,6 @@ void mglLoadIdentity()
   id.values[5] = 1.0f;
   id.values[10] = 1.0f;
   id.values[15] = 1.0f;
-
-  //cout << "Inside mglLoadIdentity, printing matrix: " << endl << endl
-  //     << id << endl << endl;
 
   if ( matRef->empty() )
   {
@@ -516,13 +527,17 @@ void mglFrustum(MGLfloat left,
 
   frustum.make_zero();
 
-  frustum.values[0] = ( 2.0f * near ) / (right - left);
-  frustum.values[5] = ( 2.0f * near ) / (top - bottom);
-  frustum.values[8] = (right + left) / (right - left);
-  frustum.values[9] = (top + bottom) / (top - bottom);
-  frustum.values[10] = -(far + near) / (far - near);
-  frustum.values[11] = -1.0f;
-  frustum.values[14] = -( 2 * far * near ) / ( far - near );
+  // Check for segfault-causing values before applying calculations
+  if ( ( near > 0 ) && ( far > 0 ) && ( left != right ) && ( bottom != top ) && ( near != far ) )
+  {
+    frustum.values[0] = ( 2.0f * near ) / ( right - left );
+    frustum.values[5] = ( 2.0f * near ) / ( top - bottom );
+    frustum.values[8] = ( right + left ) / ( right - left );
+    frustum.values[9] = ( top + bottom ) / ( top - bottom );
+    frustum.values[10] = -( far + near ) / ( far - near );
+    frustum.values[11] = -1.0f;
+    frustum.values[14] = -( 2.0f * far * near ) / ( far - near );
+  }
 
   stack<mat4> *matRef = getMatrixModeRef();
 
@@ -547,13 +562,16 @@ void mglOrtho(MGLfloat left,
 
   ortho.make_zero();
 
-  ortho.values[0] = 2.0f / (right - left);
-  ortho.values[5] = 2.0f / (top - bottom);
-  ortho.values[10] = -(2.0f) / (far - near);
-  ortho.values[12] = -(right + left) / (right - left);
-  ortho.values[13] = -(top + bottom) / (top - bottom);
-  ortho.values[14] = -(far + near) / (far - near);
-  ortho.values[15] = 1.0f;
+  if ( ( near > 0 ) && ( far > 0 ) && ( left != right ) && ( bottom != top ) && ( near != far ) )
+  {
+    ortho.values[0] = 2.0f / (right - left);
+    ortho.values[5] = 2.0f / (top - bottom);
+    ortho.values[10] = -(2.0f) / (far - near);
+    ortho.values[12] = -(right + left) / (right - left);
+    ortho.values[13] = -(top + bottom) / (top - bottom);
+    ortho.values[14] = -(far + near) / (far - near);
+    ortho.values[15] = 1.0f;
+  }
 
   stack<mat4> *matRef = getMatrixModeRef();
 
