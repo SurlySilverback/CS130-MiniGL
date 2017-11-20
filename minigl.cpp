@@ -107,7 +107,7 @@ stack<mat4> currentModViewMatrix;
 MGLfloat area( vertex a, vertex b, vertex c)
 {
     //area(abc) = a_x * ( b_y - c_y ) + a_y * ( c_x - b_x ) + ( b_x * c_y - b_y * c_x );
-    return ( abs ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) ) );
+    return ( ( 0.5f * ( a.pos[0]*b.pos[1] - a.pos[1]*b.pos[0] + b.pos[0]*c.pos[1] - b.pos[1]*c.pos[0] + c.pos[0]*a.pos[1] - c.pos[1]*a.pos[0] ) ) );
 }
 
 
@@ -140,6 +140,8 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
+    cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl << endl;
+
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
     {
@@ -161,6 +163,13 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
+      /* TEST PRINT OF VERTICES */
+      cout << "Triangle # " << n+1 << endl
+           << "============" << endl
+           << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
+           << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
+           << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
+
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
       // follows for barycentric calculations. We perform casts since the values
@@ -170,8 +179,11 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
+      cout << "(xmin, xmax) = (" << xmin << ", " << xmax << ")" << endl
+           << "(ymin, ymax) = (" << ymin << ", " << ymax << ")" << endl << endl;
+
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
-      float curr_triangle_area, areaABP, areaACP, areaBCP;
+      float curr_triangle_area, areaABP, areaAPC, areaPBC;
       vec3 p_color = curr_triangle.a.color;
 
       curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
@@ -186,12 +198,19 @@ void mglReadPixels(MGLsize width,
 
           // Find the area of three component triangles inside ABC using point P at (i,j)
           areaABP = area( curr_triangle.a, curr_triangle.b, p );
-          areaACP = area( curr_triangle.a, curr_triangle.c, p );
-          areaBCP = area( curr_triangle.b, curr_triangle.c, p );
+          areaAPC = area( curr_triangle.a, p, curr_triangle.c );
+          areaPBC = area( p, curr_triangle.b, curr_triangle.c );
+
+          float alpha = areaPBC / curr_triangle_area;
+          float beta = areaAPC / curr_triangle_area;
+          float gamma = areaABP / curr_triangle_area;
+
+          cout << "alpha, beta, gamma : " << alpha << ", " << beta << ", " << gamma << endl << endl;
 
           // If the sum of the subtriangle areas are less than or equal to main triangle area,
           // then point p at (i,j) lies inside the main triangle. Draw it.
-          if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
+          //if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
+          if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
           {
               *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
@@ -418,6 +437,26 @@ void mglTranslate(MGLfloat x,
                   MGLfloat y,
                   MGLfloat z)
 {
+  mat4 translate;
+
+  translate.make_zero();
+
+  translate.values[0] = 1.0f;
+  translate.values[5] = 1.0f;
+  translate.values[10] = 1.0f;
+  translate.values[12] = x;
+  translate.values[13] = y;
+  translate.values[14] = z;
+  translate.values[15] = 1.0f;
+
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( !(matRef->empty()) )
+  {
+      matRef->top().values[12] += translate.values[12];
+      matRef->top().values[13] += translate.values[13];
+      matRef->top().values[14] += translate.values[14];
+  }
 };
 
 /**
