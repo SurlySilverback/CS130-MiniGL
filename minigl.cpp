@@ -172,7 +172,7 @@ void mglReadPixels(MGLsize width,
 
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       float curr_triangle_area, areaABP, areaACP, areaBCP;
-      vec3 p_color( 255, 255, 255 );
+      vec3 p_color = curr_triangle.a.color;
 
       curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
 
@@ -193,7 +193,7 @@ void mglReadPixels(MGLsize width,
           // then point p at (i,j) lies inside the main triangle. Draw it.
           if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           {
-              *(data + i + j * width) = Make_Pixel( currColor[0]* 255, currColor[1] * 255, currColor[2] * 255 );
+              *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
         }
       }
