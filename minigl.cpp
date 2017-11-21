@@ -474,17 +474,35 @@ void mglRotate(MGLfloat angle,
                MGLfloat z)
 {
   mat4 rotate;
-  //MGLfloat x_ = x, y_ = y, z_ = z;
+  MGLfloat x_ = x, y_ = y, z_ = z;
 
   stack<mat4> *matRef = getMatrixModeRef();
 
   // Check for normalization of x,y,z
-  /*vec3 normTest(x_,y_,z_);
+  vec3 normTest(x_,y_,z_);
+
+  cout << "mglRotate(): Before normalization(?)" << endl
+       << "====================================" << endl
+       << "x = " << x << endl
+       << "y = " << y << endl
+       << "z = " << z << endl << endl;
+
+  cout << "normTest.magnitude() = " << normTest.magnitude() << endl << endl;
 
   if ( normTest.magnitude() != 1 )
   {
     normTest.normalized();
-  }*/
+
+    x_ = x_ / normTest.magnitude();
+    y_ = y_ / normTest.magnitude();
+    z_ = z_ / normTest.magnitude();
+  }
+
+  cout << "After normalization(?)" << endl
+       << "======================" << endl
+       << "x_ = " << x_ << endl
+       << "y_ = " << y_ << endl
+       << "z_ = " << z_ << endl << endl;
 
   // Convert from degrees to radians before calculating sin, cos
   angle = ( angle * 3.14159265 ) / 180;
@@ -494,15 +512,15 @@ void mglRotate(MGLfloat angle,
 
   rotate.make_zero();
 
-  rotate.values[0] = pow(x,2) * ( 1-c ) + c;
-  rotate.values[1] = y * x * ( 1-c ) + z * s;
-  rotate.values[2] = x * z * ( 1-c ) - y * s;
-  rotate.values[4] = x * y * ( 1-c ) - z * s;
-  rotate.values[5] = pow(y,2) * ( 1-c ) + c;
-  rotate.values[6] = y * z * ( 1-c ) + x * s;
-  rotate.values[8] = x * z * ( 1-c ) + y * s;
-  rotate.values[9] = y * z * ( 1-c ) - x * s;
-  rotate.values[10] = pow(z,2) * ( 1-c ) + c;
+  rotate.values[0] = pow(x_,2) * ( 1-c ) + c;
+  rotate.values[1] = y_ * x_ * ( 1-c ) + z_ * s;
+  rotate.values[2] = x_ * z_ * ( 1-c ) - y_ * s;
+  rotate.values[4] = x_ * y_ * ( 1-c ) - z_ * s;
+  rotate.values[5] = pow(y_,2) * ( 1-c ) + c;
+  rotate.values[6] = y_ * z_ * ( 1-c ) + x_ * s;
+  rotate.values[8] = x_ * z_ * ( 1-c ) + y_ * s;
+  rotate.values[9] = y_ * z_ * ( 1-c ) - x_ * s;
+  rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
   rotate.values[15] = 1.0f;
 
   if ( !(matRef->empty()) )
