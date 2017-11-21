@@ -474,8 +474,20 @@ void mglRotate(MGLfloat angle,
                MGLfloat z)
 {
   mat4 rotate;
+  //MGLfloat x_ = x, y_ = y, z_ = z;
 
   stack<mat4> *matRef = getMatrixModeRef();
+
+  // Check for normalization of x,y,z
+  /*vec3 normTest(x_,y_,z_);
+
+  if ( normTest.magnitude() != 1 )
+  {
+    normTest.normalized();
+  }*/
+
+  // Convert from degrees to radians before calculating sin, cos
+  angle = ( angle * 3.14159265 ) / 180;
 
   float s = sin(angle);
   float c = cos(angle);
