@@ -111,6 +111,8 @@ MGLfloat area( vertex a, vertex b, vertex c)
 }
 
 
+// Returns a pointer to the current matrix view mode. All matrix multiplications
+// will be performed on this stack until the mode is changed using mglBegin()
 stack<mat4> * getMatrixModeRef()
 {
   stack<mat4> *value;
@@ -140,7 +142,7 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl << endl;
+    //cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl << endl;
 
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
@@ -154,8 +156,8 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
 
       // ...translate the object coords of the temp vertices into display coords...
-      // x = ( width / 2w ) ( x + 1 )
-      // y = ( height / 2w ) ( y + 1 )
+      // x = ( width / 2 ) ( x + 1 )
+      // y = ( height / 2 ) ( y + 1 )
       curr_triangle.a.pos[0] = ( width * (0.5f) ) * ( curr_triangle.a.pos[0] + 1 );
       curr_triangle.a.pos[1] = ( height * (0.5f) ) * ( curr_triangle.a.pos[1] + 1 );
       curr_triangle.b.pos[0] = ( width * (0.5f) ) * ( curr_triangle.b.pos[0] + 1 );
@@ -163,13 +165,13 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      /* TEST PRINT OF VERTICES */
+      /* TEST PRINT OF VERTICES */ /*
       cout << "Triangle # " << n+1 << endl
            << "============" << endl
            << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
            << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
            << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
-
+*/
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
       // follows for barycentric calculations. We perform casts since the values
@@ -179,9 +181,10 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
+/*    // TEST PRINE OF BOUNDING BOX
       cout << "(xmin, xmax) = (" << xmin << ", " << xmax << ")" << endl
            << "(ymin, ymax) = (" << ymin << ", " << ymax << ")" << endl << endl;
-
+*/
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       float curr_triangle_area, areaABP, areaAPC, areaPBC;
       vec3 p_color = curr_triangle.a.color;
@@ -204,9 +207,10 @@ void mglReadPixels(MGLsize width,
           float alpha = areaPBC / curr_triangle_area;
           float beta = areaAPC / curr_triangle_area;
           float gamma = areaABP / curr_triangle_area;
-
+/*
+          // TEST PRINT OF BARYCENTRIC COORDINATES
           cout << "alpha, beta, gamma : " << alpha << ", " << beta << ", " << gamma << endl << endl;
-
+*/
           // If the sum of the subtriangle areas are less than or equal to main triangle area,
           // then point p at (i,j) lies inside the main triangle. Draw it.
           //if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
@@ -453,9 +457,9 @@ void mglTranslate(MGLfloat x,
 
   if ( !(matRef->empty()) )
   {
-      matRef->top().values[12] += translate.values[12];
-      matRef->top().values[13] += translate.values[13];
-      matRef->top().values[14] += translate.values[14];
+    matRef->top().values[12] += translate.values[12];
+    matRef->top().values[13] += translate.values[13];
+    matRef->top().values[14] += translate.values[14];
   }
 };
 
@@ -469,6 +473,30 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
+  mat4 rotate;
+
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  float s = sin(angle);
+  float c = cos(angle);
+
+  rotate.make_zero();
+
+  rotate.values[0] = pow(x,2) * ( 1-c ) + c;
+  rotate.values[1] = y * x * ( 1-c ) + z * s;
+  rotate.values[2] = x * z * ( 1-c ) - y * s;
+  rotate.values[4] = x * y * ( 1-c ) - z * s;
+  rotate.values[5] = pow(y,2) * ( 1-c ) + c;
+  rotate.values[6] = y * z * ( 1-c ) + x * s;
+  rotate.values[8] = x * z * ( 1-c ) + y * s;
+  rotate.values[9] = y * z * ( 1-c ) - x * s;
+  rotate.values[10] = pow(z,2) * ( 1-c ) + c;
+  rotate.values[15] = 1.0f;
+
+  if ( !(matRef->empty()) )
+  {
+    matRef->top() = rotate * matRef->top();
+  }
 };
 
 /**
