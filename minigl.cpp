@@ -142,7 +142,11 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    //cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl << endl;
+    cout << "mglReadPixels() begins here..." << endl;
+
+    cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl
+         << "Value of *(data) is " << *(data) << endl << endl;
+
 
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
@@ -165,13 +169,12 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      /* TEST PRINT OF VERTICES */ /*
       cout << "Triangle # " << n+1 << endl
            << "============" << endl
            << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
            << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
            << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
-*/
+
       // ...and then transform those temp coords into the bounding box.
       // Note: We declare our bounding vars as integers for the control loop that
       // follows for barycentric calculations. We perform casts since the values
@@ -181,10 +184,21 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
-/*    // TEST PRINE OF BOUNDING BOX
+
+      if ( xmin < 0 )
+        xmin = 0;
+      if ( ymin < 0 )
+        ymin = 0;
+      if ( xmax > width )
+        xmax = width;
+      if ( ymax > height )
+        ymax = height;
+
+
+    // TEST PRINT OF BOUNDING BOX
       cout << "(xmin, xmax) = (" << xmin << ", " << xmax << ")" << endl
            << "(ymin, ymax) = (" << ymin << ", " << ymax << ")" << endl << endl;
-*/
+
       // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
       float curr_triangle_area, areaABP, areaAPC, areaPBC;
       vec3 p_color = curr_triangle.a.color;
@@ -216,7 +230,12 @@ void mglReadPixels(MGLsize width,
           //if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
           {
-              *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
+            cout << "Printing for (i,j) = (" << i << "," << j << ")" << endl
+                 << "data  = " << data << endl
+                 << "width = " << width << endl;
+            cout << "data + i + j * width = " << data + i + j * width << endl << endl;
+
+            *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
         }
       }
@@ -252,6 +271,7 @@ void mglEnd()
             }
 
             listOfVertices.clear();
+            cout << "End of mglEnd() in TRIANGLES" << endl << endl;
 
             break;
 
@@ -272,6 +292,7 @@ void mglEnd()
             }
 
             listOfVertices.clear();
+            cout << "End of mglEnd() in QUADS" << endl << endl;
 
             break;
     }
@@ -318,7 +339,7 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
-    // Create a container for the new 2D vertex.
+    // Create a position container for the new 3D vertex.
     vec4 new_pos( x, y, z, 1.0f );
 
     // If the model view matrix stack is not empty, multiply the vertex by the matrix
@@ -335,10 +356,10 @@ void mglVertex3(MGLfloat x,
       new_pos = currentProjMatrix.top() * new_pos;
     }
 
-    // Give the vertex colour.
+    // Create the vertex using the adjusted position and the current colour.
     vertex v( new_pos, currColor );
 
-    // Push it into the list of vertices.
+    // Push the vertex into the list of vertices.
     listOfVertices.push_back(v);
 };
 
@@ -373,7 +394,11 @@ void mglPopMatrix()
 
   if ( !( matRef->empty() ) )
   {
+    cout << "Before pop, top matrix is " << endl
+         << matRef->top() << endl << endl;
     matRef->pop();
+    cout << "After pop, top matrix is " << endl
+         << matRef->top() << endl << endl;
   }
 };
 
@@ -441,22 +466,22 @@ void mglTranslate(MGLfloat x,
                   MGLfloat y,
                   MGLfloat z)
 {
-  mat4 translate;
-
-  translate.make_zero();
-
-  translate.values[0] = 1.0f;
-  translate.values[5] = 1.0f;
-  translate.values[10] = 1.0f;
-  translate.values[12] = x;
-  translate.values[13] = y;
-  translate.values[14] = z;
-  translate.values[15] = 1.0f;
-
   stack<mat4> *matRef = getMatrixModeRef();
 
   if ( !(matRef->empty()) )
   {
+    mat4 translate;
+
+    translate.make_zero();
+
+    translate.values[0] = 1.0f;
+    translate.values[5] = 1.0f;
+    translate.values[10] = 1.0f;
+    translate.values[12] = x;
+    translate.values[13] = y;
+    translate.values[14] = z;
+    translate.values[15] = 1.0f;
+
     matRef->top().values[12] += translate.values[12];
     matRef->top().values[13] += translate.values[13];
     matRef->top().values[14] += translate.values[14];
@@ -473,58 +498,53 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
-  mat4 rotate;
-  MGLfloat x_ = x, y_ = y, z_ = z;
-
   stack<mat4> *matRef = getMatrixModeRef();
-
-  // Check for normalization of x,y,z
-  vec3 normTest(x_,y_,z_);
-
-  cout << "mglRotate(): Before normalization(?)" << endl
-       << "====================================" << endl
-       << "x = " << x << endl
-       << "y = " << y << endl
-       << "z = " << z << endl << endl;
-
-  cout << "normTest.magnitude() = " << normTest.magnitude() << endl << endl;
-
-  if ( normTest.magnitude() != 1 )
-  {
-    normTest.normalized();
-
-    x_ = x_ / normTest.magnitude();
-    y_ = y_ / normTest.magnitude();
-    z_ = z_ / normTest.magnitude();
-  }
-
-  cout << "After normalization(?)" << endl
-       << "======================" << endl
-       << "x_ = " << x_ << endl
-       << "y_ = " << y_ << endl
-       << "z_ = " << z_ << endl << endl;
-
-  // Convert from degrees to radians before calculating sin, cos
-  angle = ( angle * 3.14159265 ) / 180;
-
-  float s = sin(angle);
-  float c = cos(angle);
-
-  rotate.make_zero();
-
-  rotate.values[0] = pow(x_,2) * ( 1-c ) + c;
-  rotate.values[1] = y_ * x_ * ( 1-c ) + z_ * s;
-  rotate.values[2] = x_ * z_ * ( 1-c ) - y_ * s;
-  rotate.values[4] = x_ * y_ * ( 1-c ) - z_ * s;
-  rotate.values[5] = pow(y_,2) * ( 1-c ) + c;
-  rotate.values[6] = y_ * z_ * ( 1-c ) + x_ * s;
-  rotate.values[8] = x_ * z_ * ( 1-c ) + y_ * s;
-  rotate.values[9] = y_ * z_ * ( 1-c ) - x_ * s;
-  rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
-  rotate.values[15] = 1.0f;
 
   if ( !(matRef->empty()) )
   {
+    mat4 rotate;
+    MGLfloat x_ = x, y_ = y, z_ = z;
+
+    // Check for normalization of x,y,z
+    vec3 normTest(x_,y_,z_);
+
+  /*
+    cout << "mglRotate(): Before normalization(?)" << endl
+         << "====================================" << endl
+         << "x = " << x << endl
+         << "y = " << y << endl
+         << "z = " << z << endl << endl;
+  */
+    //FIXME: cout << "normTest.magnitude() = " << normTest.magnitude() << endl << endl;
+
+    if ( normTest.magnitude() != 1 )
+    {
+      normTest.normalized();
+
+      x_ = x_ / normTest.magnitude();
+      y_ = y_ / normTest.magnitude();
+      z_ = z_ / normTest.magnitude();
+    }
+
+    // Convert from degrees to radians before calculating sin, cos
+    angle = ( angle * 3.14159265 ) / 180;
+
+    float s = sin(angle);
+    float c = cos(angle);
+
+    rotate.make_zero();
+
+    rotate.values[0] = pow(x_,2) * ( 1-c ) + c;
+    rotate.values[1] = y_ * x_ * ( 1-c ) + z_ * s;
+    rotate.values[2] = x_ * z_ * ( 1-c ) - y_ * s;
+    rotate.values[4] = x_ * y_ * ( 1-c ) - z_ * s;
+    rotate.values[5] = pow(y_,2) * ( 1-c ) + c;
+    rotate.values[6] = y_ * z_ * ( 1-c ) + x_ * s;
+    rotate.values[8] = x_ * z_ * ( 1-c ) + y_ * s;
+    rotate.values[9] = y_ * z_ * ( 1-c ) - x_ * s;
+    rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
+    rotate.values[15] = 1.0f;
+
     matRef->top() = rotate * matRef->top();
   }
 };
@@ -537,20 +557,20 @@ void mglScale(MGLfloat x,
               MGLfloat y,
               MGLfloat z)
 {
-  mat4 scale;
-
-  scale.make_zero();
-
-  scale.values[0] = x;
-  scale.values[5] = y;
-  scale.values[10] = z;
-  scale.values[15] = 1.0f;
-
   stack<mat4> *matRef = getMatrixModeRef();
 
   if ( !(matRef->empty()) )
   {
-      matRef->top() = scale * matRef->top();
+    mat4 scale;
+
+    scale.make_zero();
+
+    scale.values[0] = x;
+    scale.values[5] = y;
+    scale.values[10] = z;
+    scale.values[15] = 1.0f;
+
+    matRef->top() = scale * matRef->top();
   }
 };
 
