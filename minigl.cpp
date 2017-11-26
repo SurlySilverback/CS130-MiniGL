@@ -143,10 +143,10 @@ void mglReadPixels(MGLsize width,
                    MGLpixel *data)
 {
     cout << "mglReadPixels() begins here..." << endl;
-
+/*
     cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl
          << "Value of *(data) is " << *(data) << endl << endl;
-
+*/
 
     // For every triangle inside of listOfTriangles...
     for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
@@ -158,7 +158,14 @@ void mglReadPixels(MGLsize width,
       curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
       curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
       curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
-
+/*
+      cout << "Before obj-to-display conversion:" << endl
+           << "Triangle # " << n+1 << endl
+           << "============" << endl
+           << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
+           << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
+           << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
+*/
       // ...translate the object coords of the temp vertices into display coords...
       // x = ( width / 2 ) ( x + 1 )
       // y = ( height / 2 ) ( y + 1 )
@@ -169,7 +176,8 @@ void mglReadPixels(MGLsize width,
       curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
       curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      cout << "Triangle # " << n+1 << endl
+      cout << "After obj-to-display conversion:" << endl
+           << "Triangle # " << n+1 << endl
            << "============" << endl
            << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
            << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
@@ -184,16 +192,15 @@ void mglReadPixels(MGLsize width,
       MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
       MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
-
+      // Force a positive bounding box (otherwise writing to data[] will segfault)
       if ( xmin < 0 )
         xmin = 0;
       if ( ymin < 0 )
         ymin = 0;
-      if ( xmax > width )
-        xmax = width;
-      if ( ymax > height )
-        ymax = height;
-
+      if ( xmax > (MGLint)width )
+        xmax = (MGLint)width;
+      if ( ymax > (MGLint)height )
+        ymax = (MGLint)height;
 
     // TEST PRINT OF BOUNDING BOX
       cout << "(xmin, xmax) = (" << xmin << ", " << xmax << ")" << endl
@@ -230,11 +237,12 @@ void mglReadPixels(MGLsize width,
           //if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
           if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
           {
+            /*
             cout << "Printing for (i,j) = (" << i << "," << j << ")" << endl
                  << "data  = " << data << endl
                  << "width = " << width << endl;
             cout << "data + i + j * width = " << data + i + j * width << endl << endl;
-
+            */
             *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
         }
@@ -308,14 +316,32 @@ void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
     // Create a container for the new 2D vertex.
-    vec4 new_pos( x, y, 0, 1.0f );
+    vec4 new_pos( x, y, 0.0f, 1.0f );
 
     // If the model view matrix stack is not empty, multiply the vertex by the matrix
     // at the top of the stack.
+
+    cout << "ModViewMatrix top is:"
+         << currentModViewMatrix.top() << endl << endl;
+
+    cout << "vertex coordinates before modView" << endl
+         << "=================================" << endl
+         << "x: " << new_pos[0] << endl
+         << "y: " << new_pos[1] << endl
+         << "z: " << new_pos[2] << endl
+         << "w: " << new_pos[3] << endl << endl;
+
     if ( !( currentModViewMatrix.empty() ) )
     {
       new_pos = currentModViewMatrix.top() * new_pos;
     }
+
+    cout << "vertex coordinates after modView" << endl
+         << "================================" << endl
+         << "x: " << new_pos[0] << endl
+         << "y: " << new_pos[1] << endl
+         << "z: " << new_pos[2] << endl
+         << "w: " << new_pos[3] << endl << endl;
 
     // If the projection matrix stack is not empty, multiply the vertex by the matrix
     // at the top of the stack.
@@ -323,6 +349,13 @@ void mglVertex2(MGLfloat x,
     {
       new_pos = currentProjMatrix.top() * new_pos;
     }
+
+    cout << "vertex coordinates after projMatrix" << endl
+         << "===================================" << endl
+         << "x: " << new_pos[0] << endl
+         << "y: " << new_pos[1] << endl
+         << "z: " << new_pos[2] << endl
+         << "w: " << new_pos[3] << endl << endl;
 
     // Give the vertex colour.
     vertex v( new_pos,currColor );
@@ -379,9 +412,12 @@ void mglPushMatrix()
 {
   stack<mat4> *matRef = getMatrixModeRef();
 
-  mat4 newMat = matRef->top();
+  if ( !( matRef->empty() ) )
+  {
+    mat4 newMat = matRef->top();
 
-  matRef->push( newMat );
+    matRef->push( newMat );
+  }
 };
 
 /**
@@ -394,11 +430,11 @@ void mglPopMatrix()
 
   if ( !( matRef->empty() ) )
   {
-    cout << "Before pop, top matrix is " << endl
-         << matRef->top() << endl << endl;
+    //cout << "Before pop, top matrix is " << endl
+         //<< matRef->top() << endl << endl;
     matRef->pop();
-    cout << "After pop, top matrix is " << endl
-         << matRef->top() << endl << endl;
+    //cout << "After pop, top matrix is " << endl
+         //<< matRef->top() << endl << endl;
   }
 };
 
@@ -408,7 +444,6 @@ void mglPopMatrix()
 void mglLoadIdentity()
 {
   mat4 id;
-
   stack<mat4> *matRef = getMatrixModeRef();
 
   id.make_zero();
@@ -440,6 +475,14 @@ void mglLoadIdentity()
  */
 void mglLoadMatrix(const MGLfloat *matrix)
 {
+/*
+  stack<mat4> *matRef = getMatrixModeRef();
+
+  if ( !( matRef->empty() ) )
+  {
+    matRef->top() = *(matrix);
+  }
+*/
 };
 
 /**
@@ -482,9 +525,21 @@ void mglTranslate(MGLfloat x,
     translate.values[14] = z;
     translate.values[15] = 1.0f;
 
-    matRef->top().values[12] += translate.values[12];
-    matRef->top().values[13] += translate.values[13];
-    matRef->top().values[14] += translate.values[14];
+    //matRef->top().values[12] += translate.values[12];
+    //matRef->top().values[13] += translate.values[13];
+    //matRef->top().values[14] += translate.values[14];
+
+    cout << "translate matrix is:" << endl
+         << translate << endl << endl;
+
+    cout << "current top is:" << endl
+         << matRef->top() << endl << endl;
+
+    cout << "Multiplying matRef->top() by translate..." << endl;
+    matRef->top() = translate * matRef->top();
+
+    cout << "After translate * top, top is:" << endl
+         << matRef->top() << endl << endl;
   }
 };
 
@@ -517,6 +572,7 @@ void mglRotate(MGLfloat angle,
   */
     //FIXME: cout << "normTest.magnitude() = " << normTest.magnitude() << endl << endl;
 
+    // If the vector (x_, y_, z_) is not normalized, normalize it
     if ( normTest.magnitude() != 1 )
     {
       normTest.normalized();
@@ -545,7 +601,17 @@ void mglRotate(MGLfloat angle,
     rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
     rotate.values[15] = 1.0f;
 
+    cout << "rotate matrix is:" << endl
+         << rotate << endl << endl;
+
+    cout << "current top is:" << endl
+         << matRef->top() << endl << endl;
+
+    cout << "Multiplying matRef->top() by rotate..." << endl;
     matRef->top() = rotate * matRef->top();
+
+    cout << "After rotate * top, top is:" << endl
+         << matRef->top() << endl << endl;
   }
 };
 
@@ -570,7 +636,17 @@ void mglScale(MGLfloat x,
     scale.values[10] = z;
     scale.values[15] = 1.0f;
 
+    cout << "scale matrix is:" << endl
+         << scale << endl << endl;
+
+    cout << "current top is:" << endl
+         << matRef->top() << endl << endl;
+
+    cout << "Multiplying matRef->top() by scale..." << endl;
     matRef->top() = scale * matRef->top();
+
+    cout << "After scale * top, top is:" << endl
+         << matRef->top() << endl << endl;
   }
 };
 
@@ -635,7 +711,17 @@ void mglOrtho(MGLfloat left,
   if ( matRef->empty() )
     mglLoadIdentity();
 
+  cout << "ortho matrix is:" << endl
+       << ortho << endl << endl;
+
+  cout << "current top is:" << endl
+       << matRef->top() << endl << endl;
+
+  cout << "Multiplying matRef->top() by ortho..." << endl;
   matRef->top() = ortho * matRef->top();
+
+  cout << "After translate * top, top is:" << endl
+       << matRef->top() << endl << endl;
 };
 
 /**
