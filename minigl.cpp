@@ -528,6 +528,17 @@ void mglLoadMatrix(const MGLfloat *matrix)
  */
 void mglMultMatrix(const MGLfloat *matrix)
 {
+  mat4 multMatrix;
+  multMatrix.make_zero();
+
+  mat4 *currMatRef = getCurrentMatrix();
+
+  for (unsigned i = 0; i < 16; ++i)
+  {
+      multMatrix.values[i] = matrix[i];
+  }
+
+  *(currMatRef) = (*(currMatRef)) * multMatrix;
 };
 
 /**
