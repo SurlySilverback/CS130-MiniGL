@@ -511,7 +511,12 @@ void mglLoadIdentity()
  */
 void mglLoadMatrix(const MGLfloat *matrix)
 {
-  //currentMatrix = *(matrix);
+  mat4 *currMatRef = getCurrentMatrix();
+
+  for (unsigned i = 0; i < 16; ++i)
+  {
+      currMatRef->values[i] = matrix[i];
+  }
 };
 
 /**
