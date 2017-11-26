@@ -188,6 +188,7 @@ void mglReadPixels(MGLsize width,
     // ...grab the positions of its vertices and store it in a local triangle obj...
     triangle curr_triangle = listOfTriangles.at(n);
 
+
     // Divide by the w value for homogeneous coordinates ( (x/w), (y/w), (z/w), 1 )
     // w value is stored at curr_triangle.a.pos[3]
     curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
@@ -195,14 +196,6 @@ void mglReadPixels(MGLsize width,
     curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
 
 
-/*
-      cout << "Before obj-to-display conversion:" << endl
-           << "Triangle # " << n+1 << endl
-           << "============" << endl
-           << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
-           << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
-           << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
-*/
     // ...translate the object coords of the temp vertices into display coords...
     // x = ( width / 2 ) ( x + 1 )
     // y = ( height / 2 ) ( y + 1 )
@@ -232,12 +225,11 @@ void mglReadPixels(MGLsize width,
 
     // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
     float curr_triangle_area, areaABP, areaAPC, areaPBC;
+    curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
+
 
     // FIXME: We will need to fix this hack for colour interpolation
     vec3 p_color = curr_triangle.a.color;
-
-    curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
-
 
 
     // For the constraints of our bounding box...
@@ -249,6 +241,7 @@ void mglReadPixels(MGLsize width,
         vec4 p_pos(i,j,0,1);
         vertex p(p_pos, p_color);
 
+
         // Find the area of three component triangles inside ABC using point P at (i,j)
         areaABP = area( curr_triangle.a, curr_triangle.b, p );
         areaAPC = area( curr_triangle.a, p, curr_triangle.c );
@@ -258,12 +251,20 @@ void mglReadPixels(MGLsize width,
         float beta = areaAPC / curr_triangle_area;
         float gamma = areaABP / curr_triangle_area;
 
+// BEGIN: COLOUR INTERPOLATION BLOCK
+        //float alpha_prime = alpha * curr_triangle.a.pos[2] *
+
+// END: COLOUR INTERPOLATION BLOCK
+
         // Calculate current Z value for pixel (i,j)
         MGLfloat currZ = ( alpha*curr_triangle.a.pos[2] ) + ( beta*curr_triangle.b.pos[2] ) + ( gamma*curr_triangle.c.pos[2] );
-/*
-          // TEST PRINT OF BARYCENTRIC COORDINATES
-          cout << "alpha, beta, gamma : " << alpha << ", " << beta << ", " << gamma << endl << endl;
-*/
+
+        // Calculate the linear interpolation for colour
+        vec3 interpColor;
+        interpColor[0] = ( alpha*curr_triangle.a.color[0] ) + ( beta*curr_triangle.b.color[0] ) + ( gamma*curr_triangle.c.color[0] );
+        interpColor[1] = ( alpha*curr_triangle.a.color[1] ) + ( beta*curr_triangle.b.color[1] ) + ( gamma*curr_triangle.c.color[1] );
+        interpColor[2] = ( alpha*curr_triangle.a.color[2] ) + ( beta*curr_triangle.b.color[2] ) + ( gamma*curr_triangle.c.color[2] );
+
         // If all barycentric params are >=, then point p at (i,j) lies inside
         // the main triangle.
         if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
@@ -277,7 +278,8 @@ void mglReadPixels(MGLsize width,
             z_buffer.at(i).at(j) = currZ;
 
             // FIXME: Ensure that correct colour interpolation occurs here by passing params to Make_Pixel
-            *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
+            //*(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 ); // OLD CODE
+            *(data + i + j * width) = Make_Pixel( interpColor[0] * 255, interpColor[1] * 255, interpColor[2] * 255 );
           }
         }
       }
