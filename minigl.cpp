@@ -103,6 +103,12 @@ stack<mat4> projectionMatrixStack;
 // Model View Stack
 stack<mat4> modelViewMatrixStack;
 
+// z_buffer to store the locations of drawn pixels in mglReadPixels.
+// z_buffer is a 2D vector of MGLints, with default value of 2 indicating
+// no pixel is drawn at that pixel location (since object space values are
+// defined as -1 <= val <= 1).
+vector< vector<MGLint> > z_buffer;
+
 /*******************************************************************************
  FUNCTIONS
 *******************************************************************************/
@@ -160,22 +166,35 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-    cout << "mglReadPixels() begins here..." << endl;
+  cout << "mglReadPixels() begins here..." << endl;
+
+  // Initialize the z-buffer to a default max for this draw pass.
+  z_buffer.resize(width);
+
+  for ( unsigned i = 0; i < width; ++i )
+  {
+    z_buffer.at(i).resize(height);
+
+    for ( unsigned j = 0; j < height; ++j )
+      z_buffer.at(i).at(j) = 2.0f;
+  }
 /*
     cout << "listOfTriangles.size() == " << listOfTriangles.size() << endl
          << "Value of *(data) is " << *(data) << endl << endl;
 */
-
     // For every triangle inside of listOfTriangles...
-    for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
-    {
-      // ...grab the positions of its vertices and store it in a local triangle obj...
-      triangle curr_triangle = listOfTriangles.at(n);
+  for ( unsigned n = 0; n < listOfTriangles.size(); ++n )
+  {
+    // ...grab the positions of its vertices and store it in a local triangle obj...
+    triangle curr_triangle = listOfTriangles.at(n);
 
-      // Divide by the w value for homogeneous coordinates ( (x/w), (y/w), (z/w), 1 )
-      curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
-      curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
-      curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
+    // Divide by the w value for homogeneous coordinates ( (x/w), (y/w), (z/w), 1 )
+    // w value is stored at curr_triangle.a.pos[3]
+    curr_triangle.a.pos = curr_triangle.a.pos / curr_triangle.a.pos[3];
+    curr_triangle.b.pos = curr_triangle.b.pos / curr_triangle.b.pos[3];
+    curr_triangle.c.pos = curr_triangle.c.pos / curr_triangle.c.pos[3];
+
+
 /*
       cout << "Before obj-to-display conversion:" << endl
            << "Triangle # " << n+1 << endl
@@ -184,15 +203,15 @@ void mglReadPixels(MGLsize width,
            << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
            << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
 */
-      // ...translate the object coords of the temp vertices into display coords...
-      // x = ( width / 2 ) ( x + 1 )
-      // y = ( height / 2 ) ( y + 1 )
-      curr_triangle.a.pos[0] = ( width * (0.5f) ) * ( curr_triangle.a.pos[0] + 1 );
-      curr_triangle.a.pos[1] = ( height * (0.5f) ) * ( curr_triangle.a.pos[1] + 1 );
-      curr_triangle.b.pos[0] = ( width * (0.5f) ) * ( curr_triangle.b.pos[0] + 1 );
-      curr_triangle.b.pos[1] = ( height * (0.5f) ) * ( curr_triangle.b.pos[1] + 1 );
-      curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
-      curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
+    // ...translate the object coords of the temp vertices into display coords...
+    // x = ( width / 2 ) ( x + 1 )
+    // y = ( height / 2 ) ( y + 1 )
+    curr_triangle.a.pos[0] = ( width * (0.5f) ) * ( curr_triangle.a.pos[0] + 1 );
+    curr_triangle.a.pos[1] = ( height * (0.5f) ) * ( curr_triangle.a.pos[1] + 1 );
+    curr_triangle.b.pos[0] = ( width * (0.5f) ) * ( curr_triangle.b.pos[0] + 1 );
+    curr_triangle.b.pos[1] = ( height * (0.5f) ) * ( curr_triangle.b.pos[1] + 1 );
+    curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
+    curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
       cout << "After obj-to-display conversion:" << endl
            << "Triangle # " << n+1 << endl
@@ -201,71 +220,69 @@ void mglReadPixels(MGLsize width,
            << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
            << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
 
-      // ...and then transform those temp coords into the bounding box.
-      // Note: We declare our bounding vars as integers for the control loop that
-      // follows for barycentric calculations. We perform casts since the values
-      // we are working with inside of the temp triangle are MGLfloats.
-      MGLint xmin = (MGLint)floor( min( min( curr_triangle.a.pos[0], curr_triangle.b.pos[0] ), curr_triangle.c.pos[0] ) );
-      MGLint xmax = (MGLint)ceil( max( max( curr_triangle.a.pos[0], curr_triangle.b.pos[0] ), curr_triangle.c.pos[0] ) );
-      MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
-      MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
+    // ...and then transform those temp coords into the bounding box.
+    // Note: We declare our bounding vars as integers for the control loop that
+    // follows for barycentric calculations. We perform casts since the values
+    // we are working with inside of the temp triangle are MGLfloats.
+    MGLint xmin = (MGLint)floor( min( min( curr_triangle.a.pos[0], curr_triangle.b.pos[0] ), curr_triangle.c.pos[0] ) );
+    MGLint xmax = (MGLint)ceil( max( max( curr_triangle.a.pos[0], curr_triangle.b.pos[0] ), curr_triangle.c.pos[0] ) );
+    MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
+    MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
-      // Force a positive bounding box (otherwise writing to data[] will segfault)
-      if ( xmin < 0 )
-        xmin = 0;
-      if ( ymin < 0 )
-        ymin = 0;
-      if ( xmax > (MGLint)width )
-        xmax = (MGLint)width;
-      if ( ymax > (MGLint)height )
-        ymax = (MGLint)height;
 
-    // TEST PRINT OF BOUNDING BOX
-      cout << "(xmin, xmax) = (" << xmin << ", " << xmax << ")" << endl
-           << "(ymin, ymax) = (" << ymin << ", " << ymax << ")" << endl << endl;
+    // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
+    float curr_triangle_area, areaABP, areaAPC, areaPBC;
 
-      // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
-      float curr_triangle_area, areaABP, areaAPC, areaPBC;
-      vec3 p_color = curr_triangle.a.color;
+    // FIXME: We will need to fix this hack for colour interpolation
+    vec3 p_color = curr_triangle.a.color;
 
-      curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
+    curr_triangle_area = area( curr_triangle.a, curr_triangle.b, curr_triangle.c );
 
-      // For the constraints of our bounding box...
-      for ( int i = xmin; i < xmax; ++i )
+
+
+    // For the constraints of our bounding box...
+    for ( int i = xmin; i < xmax; ++i )
+    {
+      for ( int j = ymin; j < ymax; ++j )
       {
-        for ( int j = ymin; j < ymax; ++j )
-        {
-          vec4 p_pos(i,j,0,1);
-          vertex p(p_pos, p_color);
+        // FIXME: Here we must pass the interpolated value of z into the z-value for P
+        vec4 p_pos(i,j,0,1);
+        vertex p(p_pos, p_color);
 
-          // Find the area of three component triangles inside ABC using point P at (i,j)
-          areaABP = area( curr_triangle.a, curr_triangle.b, p );
-          areaAPC = area( curr_triangle.a, p, curr_triangle.c );
-          areaPBC = area( p, curr_triangle.b, curr_triangle.c );
+        // Find the area of three component triangles inside ABC using point P at (i,j)
+        areaABP = area( curr_triangle.a, curr_triangle.b, p );
+        areaAPC = area( curr_triangle.a, p, curr_triangle.c );
+        areaPBC = area( p, curr_triangle.b, curr_triangle.c );
 
-          float alpha = areaPBC / curr_triangle_area;
-          float beta = areaAPC / curr_triangle_area;
-          float gamma = areaABP / curr_triangle_area;
+        float alpha = areaPBC / curr_triangle_area;
+        float beta = areaAPC / curr_triangle_area;
+        float gamma = areaABP / curr_triangle_area;
+
+        // Calculate current Z value for pixel (i,j)
+        MGLfloat currZ = ( alpha*curr_triangle.a.pos[2] ) + ( beta*curr_triangle.b.pos[2] ) + ( gamma*curr_triangle.c.pos[2] );
 /*
           // TEST PRINT OF BARYCENTRIC COORDINATES
           cout << "alpha, beta, gamma : " << alpha << ", " << beta << ", " << gamma << endl << endl;
 */
-          // If the sum of the subtriangle areas are less than or equal to main triangle area,
-          // then point p at (i,j) lies inside the main triangle. Draw it.
-          //if ( areaBCP + areaACP + areaABP <= curr_triangle_area )
-          if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
+        // If all barycentric params are >=, then point p at (i,j) lies inside
+        // the main triangle.
+        if ( alpha >= 0 && beta >= 0 && gamma >= 0 )
+        {
+          // FIXME: Now check if pixel (i,j) has been drawn to. If it has, only draw
+          // the current incoming pixel if its z-value is less than the one
+          // already drawn at (i,j).
+          if ( currZ < z_buffer.at(i).at(j) )
           {
-            /*
-            cout << "Printing for (i,j) = (" << i << "," << j << ")" << endl
-                 << "data  = " << data << endl
-                 << "width = " << width << endl;
-            cout << "data + i + j * width = " << data + i + j * width << endl << endl;
-            */
+            // Set the z_buffer equal to the new, closer pixel at (i,j)
+            z_buffer.at(i).at(j) = currZ;
+
+            // FIXME: Ensure that correct colour interpolation occurs here by passing params to Make_Pixel
             *(data + i + j * width) = Make_Pixel( p_color[0] * 255, p_color[1] * 255, p_color[2] * 255 );
           }
         }
       }
     }
+  }
 };
 
 
@@ -455,17 +472,6 @@ void mglPopMatrix()
   // also need to be deleted in order to avoid a possible memory leak.
   stack<mat4> *matStackRef = getMatrixModeRef();
   mat4 *currMatRef = getCurrentMatrix();
-
-  // Test cout to see what stack we're referencing
-  if ( matrixMode == MGL_PROJECTION )
-    cout << "Currently in projection mode" << endl << endl;
-
-  if ( matrixMode == MGL_MODELVIEW )
-    cout << "Currently in model view mode" << endl << endl;
-
-  cout << "mglPopMatrix()" << endl
-       << "==============" << endl
-       << "Before pop, matStackRef->top() = " << matStackRef->top() << endl;
 
   if ( !( matStackRef->empty() ) )
   {
