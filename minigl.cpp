@@ -93,11 +93,15 @@ vector<triangle> listOfTriangles;
  DATA STRUCTURES
  ******************************************************************************/
 
+mat4 currentModelViewMatrix;
+
+mat4 currentProjectionMatrix;
+
 // Projection Stack
-stack<mat4> currentProjMatrix;
+stack<mat4> projectionMatrixStack;
 
 // Model View Stack
-stack<mat4> currentModViewMatrix;
+stack<mat4> modelViewMatrixStack;
 
 /*******************************************************************************
  FUNCTIONS
@@ -111,17 +115,31 @@ MGLfloat area( vertex a, vertex b, vertex c)
 }
 
 
-// Returns a pointer to the current matrix view mode. All matrix multiplications
+// Returns a pointer to the current transformation matrix.
+mat4 * getCurrentMatrix()
+{
+  mat4 *value;
+
+  if ( matrixMode == MGL_PROJECTION )
+    value = &currentProjectionMatrix;
+
+  else
+    value = &currentModelViewMatrix;
+
+  return value;
+}
+
+// Returns a pointer to the current matrix view mode. All push/pop operations
 // will be performed on this stack until the mode is changed using mglBegin()
 stack<mat4> * getMatrixModeRef()
 {
   stack<mat4> *value;
 
   if ( matrixMode == MGL_PROJECTION )
-    value = &currentProjMatrix;
+    value = &projectionMatrixStack;
 
   else
-    value = &currentModViewMatrix;
+    value = &modelViewMatrixStack;
 
   return value;
 }
@@ -315,53 +333,45 @@ void mglEnd()
 void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
-    // Create a container for the new 2D vertex.
-    vec4 new_pos( x, y, 0.0f, 1.0f );
+  // Create a container for the new 2D vertex.
+  vec4 new_pos( x, y, 0.0f, 1.0f );
 
-    // If the model view matrix stack is not empty, multiply the vertex by the matrix
-    // at the top of the stack.
 
-    cout << "ModViewMatrix top is:"
-         << currentModViewMatrix.top() << endl << endl;
+  cout << "In mglVertex2() -- currentModelViewMatrix is: "
+       << currentModelViewMatrix << endl << endl;
 
-    cout << "vertex coordinates before modView" << endl
-         << "=================================" << endl
-         << "x: " << new_pos[0] << endl
-         << "y: " << new_pos[1] << endl
-         << "z: " << new_pos[2] << endl
-         << "w: " << new_pos[3] << endl << endl;
+  cout << "vertex coordinates before modView" << endl
+       << "=================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
 
-    if ( !( currentModViewMatrix.empty() ) )
-    {
-      new_pos = currentModViewMatrix.top() * new_pos;
-    }
+  // Multiply the new position by the currentModelViewMatrix
+  new_pos = currentModelViewMatrix * new_pos;
 
-    cout << "vertex coordinates after modView" << endl
-         << "================================" << endl
-         << "x: " << new_pos[0] << endl
-         << "y: " << new_pos[1] << endl
-         << "z: " << new_pos[2] << endl
-         << "w: " << new_pos[3] << endl << endl;
+  cout << "vertex coordinates after modView" << endl
+       << "================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
 
-    // If the projection matrix stack is not empty, multiply the vertex by the matrix
-    // at the top of the stack.
-    if ( !( currentProjMatrix.empty() ) )
-    {
-      new_pos = currentProjMatrix.top() * new_pos;
-    }
+  // Multiply the new position by the currentProjectionMatrix
+  new_pos = currentProjectionMatrix * new_pos;
 
-    cout << "vertex coordinates after projMatrix" << endl
-         << "===================================" << endl
-         << "x: " << new_pos[0] << endl
-         << "y: " << new_pos[1] << endl
-         << "z: " << new_pos[2] << endl
-         << "w: " << new_pos[3] << endl << endl;
+  cout << "vertex coordinates after projMatrix" << endl
+       << "===================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
 
-    // Give the vertex colour.
-    vertex v( new_pos,currColor );
+  // Give the vertex colour.
+  vertex v( new_pos,currColor );
 
-    // Push it into the list of vertices.
-    listOfVertices.push_back(v);
+  // Push it into the list of vertices.
+  listOfVertices.push_back(v);
 };
 
 /**
@@ -372,28 +382,44 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
-    // Create a position container for the new 3D vertex.
-    vec4 new_pos( x, y, z, 1.0f );
+  // Create a position container for the new 3D vertex.
+  vec4 new_pos( x, y, z, 1.0f );
 
-    // If the model view matrix stack is not empty, multiply the vertex by the matrix
-    // at the top of the stack.
-    if ( !( currentModViewMatrix.empty() ) )
-    {
-      new_pos = currentModViewMatrix.top() * new_pos;
-    }
+  cout << "In mglVertex3() -- currentModelViewMatrix is: "
+       << currentModelViewMatrix << endl << endl;
 
-    // If the projection matrix stack is not empty, multiply the vertex by the matrix
-    // at the top of the stack.
-    if ( !( currentProjMatrix.empty() ) )
-    {
-      new_pos = currentProjMatrix.top() * new_pos;
-    }
+  cout << "vertex coordinates before modView" << endl
+       << "=================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
 
-    // Create the vertex using the adjusted position and the current colour.
-    vertex v( new_pos, currColor );
+  // Multiply the new position by the currentModelViewMatrix
+  new_pos = currentModelViewMatrix * new_pos;
 
-    // Push the vertex into the list of vertices.
-    listOfVertices.push_back(v);
+  cout << "vertex coordinates after modView" << endl
+       << "================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
+
+  // Multiply the new position by the currentProjectionMatrix
+  new_pos = currentProjectionMatrix * new_pos;
+
+  cout << "vertex coordinates after projMatrix" << endl
+       << "===================================" << endl
+       << "x: " << new_pos[0] << endl
+       << "y: " << new_pos[1] << endl
+       << "z: " << new_pos[2] << endl
+       << "w: " << new_pos[3] << endl << endl;
+
+  // Create the vertex using the adjusted position and the current colour.
+  vertex v( new_pos, currColor );
+
+  // Push the vertex into the list of vertices.
+  listOfVertices.push_back(v);
 };
 
 /**
@@ -410,14 +436,12 @@ void mglMatrixMode(MGLmatrix_mode mode)
  */
 void mglPushMatrix()
 {
-  stack<mat4> *matRef = getMatrixModeRef();
+  stack<mat4> *matStackRef = getMatrixModeRef();
+  mat4 *currMatRef = getCurrentMatrix();
 
-  if ( !( matRef->empty() ) )
-  {
-    mat4 newMat = matRef->top();
-
-    matRef->push( newMat );
-  }
+  // FIXME: Make sure that popping this doesn't lead to a memory leak. Consider
+  // invoking delete on pop operation in mglPopMatrix().
+  matStackRef->push( *(currMatRef) );
 };
 
 /**
@@ -426,15 +450,28 @@ void mglPushMatrix()
  */
 void mglPopMatrix()
 {
-  stack<mat4> *matRef = getMatrixModeRef();
+  // FIXME: in mglPushMatrix, a dereferenced pointer is used to push matrices into
+  // the current stack. Check here to make sure that the matrix being popped doesn't
+  // also need to be deleted in order to avoid a possible memory leak.
+  stack<mat4> *matStackRef = getMatrixModeRef();
+  mat4 *currMatRef = getCurrentMatrix();
 
-  if ( !( matRef->empty() ) )
+  // Test cout to see what stack we're referencing
+  if ( matrixMode == MGL_PROJECTION )
+    cout << "Currently in projection mode" << endl << endl;
+
+  if ( matrixMode == MGL_MODELVIEW )
+    cout << "Currently in model view mode" << endl << endl;
+
+  cout << "mglPopMatrix()" << endl
+       << "==============" << endl
+       << "Before pop, matStackRef->top() = " << matStackRef->top() << endl;
+
+  if ( !( matStackRef->empty() ) )
   {
-    //cout << "Before pop, top matrix is " << endl
-         //<< matRef->top() << endl << endl;
-    matRef->pop();
-    //cout << "After pop, top matrix is " << endl
-         //<< matRef->top() << endl << endl;
+    // FIXME: This could be wrong. Originally, we just popped the top matrix of matStackRef without assignment.
+    *(currMatRef) = matStackRef->top();
+    matStackRef->pop();
   }
 };
 
@@ -443,22 +480,13 @@ void mglPopMatrix()
  */
 void mglLoadIdentity()
 {
-  mat4 id;
-  stack<mat4> *matRef = getMatrixModeRef();
+  // Create an identity matrix
+  mat4 id = {{ 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f }};
 
-  id.make_zero();
+  // Get the current matrix
+  mat4 *currMatRef = getCurrentMatrix();
 
-  id.values[0] = 1.0f;
-  id.values[5] = 1.0f;
-  id.values[10] = 1.0f;
-  id.values[15] = 1.0f;
-
-  if ( matRef->empty() )
-  {
-    matRef->push(id);
-  }
-  else
-    matRef->top() = id;
+  *(currMatRef) = id;
 };
 
 /**
@@ -475,14 +503,7 @@ void mglLoadIdentity()
  */
 void mglLoadMatrix(const MGLfloat *matrix)
 {
-/*
-  stack<mat4> *matRef = getMatrixModeRef();
-
-  if ( !( matRef->empty() ) )
-  {
-    matRef->top() = *(matrix);
-  }
-*/
+  //currentMatrix = *(matrix);
 };
 
 /**
@@ -509,38 +530,11 @@ void mglTranslate(MGLfloat x,
                   MGLfloat y,
                   MGLfloat z)
 {
-  stack<mat4> *matRef = getMatrixModeRef();
+  mat4 translate = {{ 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, x, y, z, 1.0f }};
 
-  if ( !(matRef->empty()) )
-  {
-    mat4 translate;
+  mat4 *currMatRef = getCurrentMatrix();
 
-    translate.make_zero();
-
-    translate.values[0] = 1.0f;
-    translate.values[5] = 1.0f;
-    translate.values[10] = 1.0f;
-    translate.values[12] = x;
-    translate.values[13] = y;
-    translate.values[14] = z;
-    translate.values[15] = 1.0f;
-
-    //matRef->top().values[12] += translate.values[12];
-    //matRef->top().values[13] += translate.values[13];
-    //matRef->top().values[14] += translate.values[14];
-
-    cout << "translate matrix is:" << endl
-         << translate << endl << endl;
-
-    cout << "current top is:" << endl
-         << matRef->top() << endl << endl;
-
-    cout << "Multiplying matRef->top() by translate..." << endl;
-    matRef->top() = translate * matRef->top();
-
-    cout << "After translate * top, top is:" << endl
-         << matRef->top() << endl << endl;
-  }
+  *(currMatRef) = (*(currMatRef)) * translate;
 };
 
 /**
@@ -553,66 +547,44 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
-  stack<mat4> *matRef = getMatrixModeRef();
+  mat4 rotate;
+  MGLfloat x_ = x, y_ = y, z_ = z;
 
-  if ( !(matRef->empty()) )
+  // Check for normalization of x,y,z
+  vec3 normTest(x_,y_,z_);
+
+  // If the vector (x_, y_, z_) is not normalized, normalize it
+  if ( normTest.magnitude() != 1 )
   {
-    mat4 rotate;
-    MGLfloat x_ = x, y_ = y, z_ = z;
+    normTest.normalized();
 
-    // Check for normalization of x,y,z
-    vec3 normTest(x_,y_,z_);
-
-  /*
-    cout << "mglRotate(): Before normalization(?)" << endl
-         << "====================================" << endl
-         << "x = " << x << endl
-         << "y = " << y << endl
-         << "z = " << z << endl << endl;
-  */
-    //FIXME: cout << "normTest.magnitude() = " << normTest.magnitude() << endl << endl;
-
-    // If the vector (x_, y_, z_) is not normalized, normalize it
-    if ( normTest.magnitude() != 1 )
-    {
-      normTest.normalized();
-
-      x_ = x_ / normTest.magnitude();
-      y_ = y_ / normTest.magnitude();
-      z_ = z_ / normTest.magnitude();
-    }
-
-    // Convert from degrees to radians before calculating sin, cos
-    angle = ( angle * 3.14159265 ) / 180;
-
-    float s = sin(angle);
-    float c = cos(angle);
-
-    rotate.make_zero();
-
-    rotate.values[0] = pow(x_,2) * ( 1-c ) + c;
-    rotate.values[1] = y_ * x_ * ( 1-c ) + z_ * s;
-    rotate.values[2] = x_ * z_ * ( 1-c ) - y_ * s;
-    rotate.values[4] = x_ * y_ * ( 1-c ) - z_ * s;
-    rotate.values[5] = pow(y_,2) * ( 1-c ) + c;
-    rotate.values[6] = y_ * z_ * ( 1-c ) + x_ * s;
-    rotate.values[8] = x_ * z_ * ( 1-c ) + y_ * s;
-    rotate.values[9] = y_ * z_ * ( 1-c ) - x_ * s;
-    rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
-    rotate.values[15] = 1.0f;
-
-    cout << "rotate matrix is:" << endl
-         << rotate << endl << endl;
-
-    cout << "current top is:" << endl
-         << matRef->top() << endl << endl;
-
-    cout << "Multiplying matRef->top() by rotate..." << endl;
-    matRef->top() = rotate * matRef->top();
-
-    cout << "After rotate * top, top is:" << endl
-         << matRef->top() << endl << endl;
+    x_ = x_ / normTest.magnitude();
+    y_ = y_ / normTest.magnitude();
+    z_ = z_ / normTest.magnitude();
   }
+
+  // Convert from degrees to radians before calculating sin, cos
+  angle = ( angle * 3.14159265 ) / 180;
+
+  float s = sin(angle);
+  float c = cos(angle);
+
+  rotate.make_zero();
+
+  rotate.values[0] = pow(x_,2) * ( 1-c ) + c;
+  rotate.values[1] = y_ * x_ * ( 1-c ) + z_ * s;
+  rotate.values[2] = x_ * z_ * ( 1-c ) - y_ * s;
+  rotate.values[4] = x_ * y_ * ( 1-c ) - z_ * s;
+  rotate.values[5] = pow(y_,2) * ( 1-c ) + c;
+  rotate.values[6] = y_ * z_ * ( 1-c ) + x_ * s;
+  rotate.values[8] = x_ * z_ * ( 1-c ) + y_ * s;
+  rotate.values[9] = y_ * z_ * ( 1-c ) - x_ * s;
+  rotate.values[10] = pow(z_,2) * ( 1-c ) + c;
+  rotate.values[15] = 1.0f;
+
+  mat4 *currMatRef = getCurrentMatrix();
+
+  *(currMatRef) = (*(currMatRef)) * rotate;
 };
 
 /**
@@ -623,31 +595,11 @@ void mglScale(MGLfloat x,
               MGLfloat y,
               MGLfloat z)
 {
-  stack<mat4> *matRef = getMatrixModeRef();
+  mat4 scale = {{ x, 0.0f, 0.0f, 0.0f, 0.0f, y, 0.0f, 0.0f, 0.0f, 0.0f, z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f }};
 
-  if ( !(matRef->empty()) )
-  {
-    mat4 scale;
+  mat4 *currMatRef = getCurrentMatrix();
 
-    scale.make_zero();
-
-    scale.values[0] = x;
-    scale.values[5] = y;
-    scale.values[10] = z;
-    scale.values[15] = 1.0f;
-
-    cout << "scale matrix is:" << endl
-         << scale << endl << endl;
-
-    cout << "current top is:" << endl
-         << matRef->top() << endl << endl;
-
-    cout << "Multiplying matRef->top() by scale..." << endl;
-    matRef->top() = scale * matRef->top();
-
-    cout << "After scale * top, top is:" << endl
-         << matRef->top() << endl << endl;
-  }
+  *(currMatRef) = (*(currMatRef)) * scale;
 };
 
 /**
@@ -665,7 +617,7 @@ void mglFrustum(MGLfloat left,
 
   frustum.make_zero();
 
-  // Create the perspectiveprojection (frustum) matrix
+  // Create the perspective projection (frustum) matrix
   frustum.values[0] = ( 2.0f * near ) / ( right - left );
   frustum.values[5] = ( 2.0f * near ) / ( top - bottom );
   frustum.values[8] = ( right + left ) / ( right - left );
@@ -674,12 +626,9 @@ void mglFrustum(MGLfloat left,
   frustum.values[11] = -1.0f;
   frustum.values[14] = -( 2.0f * far * near ) / ( far - near );
 
-  stack<mat4> *matRef = getMatrixModeRef();
+  mat4 *currMatRef = getCurrentMatrix();
 
-  if ( matRef->empty() )
-    mglLoadIdentity();
-
-  matRef->top() = frustum * matRef->top();
+  *(currMatRef) = (*(currMatRef)) * frustum;
 };
 
 /**
@@ -706,22 +655,9 @@ void mglOrtho(MGLfloat left,
   ortho.values[14] = -(far + near) / (far - near);
   ortho.values[15] = 1.0f;
 
-  stack<mat4> *matRef = getMatrixModeRef();
+  mat4 *currMatRef = getCurrentMatrix();
 
-  if ( matRef->empty() )
-    mglLoadIdentity();
-
-  cout << "ortho matrix is:" << endl
-       << ortho << endl << endl;
-
-  cout << "current top is:" << endl
-       << matRef->top() << endl << endl;
-
-  cout << "Multiplying matRef->top() by ortho..." << endl;
-  matRef->top() = ortho * matRef->top();
-
-  cout << "After translate * top, top is:" << endl
-       << matRef->top() << endl << endl;
+  *(currMatRef) = (*(currMatRef)) * ortho;
 };
 
 /**
