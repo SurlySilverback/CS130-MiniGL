@@ -222,6 +222,15 @@ void mglReadPixels(MGLsize width,
     MGLint ymin = (MGLint)floor( min( min( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
     MGLint ymax = (MGLint)ceil( max( max( curr_triangle.a.pos[1], curr_triangle.b.pos[1] ), curr_triangle.c.pos[1] ) );
 
+    // Force bounding box for NDC space clipping.
+    if ( xmin < 0 )
+      xmin = 0;
+    if ( ymin < 0 )
+      ymin = 0;
+    if ( xmax > width )
+        xmax = width;
+    if ( ymax > height )
+        ymax = height;
 
     // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
     float curr_triangle_area, areaABP, areaAPC, areaPBC;
@@ -257,6 +266,7 @@ void mglReadPixels(MGLsize width,
 // END: COLOUR INTERPOLATION BLOCK
 
         // Calculate current Z value for pixel (i,j)
+        // FIXME: Perhaps turn this into a vertex object that stores a Z value
         MGLfloat currZ = ( alpha*curr_triangle.a.pos[2] ) + ( beta*curr_triangle.b.pos[2] ) + ( gamma*curr_triangle.c.pos[2] );
 
         // Calculate the linear interpolation for colour
@@ -272,7 +282,9 @@ void mglReadPixels(MGLsize width,
           // FIXME: Now check if pixel (i,j) has been drawn to. If it has, only draw
           // the current incoming pixel if its z-value is less than the one
           // already drawn at (i,j).
-          if ( currZ < z_buffer.at(i).at(j) )
+          // Include a check to ensure that the current Z value is between -1
+          // and 1 for NDC space clipping.
+          if ( currZ < z_buffer.at(i).at(j) && currZ >= -1 && currZ <= 1 )
           {
             // Set the z_buffer equal to the new, closer pixel at (i,j)
             z_buffer.at(i).at(j) = currZ;
