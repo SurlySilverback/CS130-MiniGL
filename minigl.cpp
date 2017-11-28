@@ -107,7 +107,7 @@ stack<mat4> modelViewMatrixStack;
 // z_buffer is a 2D vector of MGLints, with default value of 2 indicating
 // no pixel is drawn at that pixel location (since object space values are
 // defined as -1 <= val <= 1).
-vector< vector<MGLint> > z_buffer;
+vector< vector<MGLfloat> > z_buffer;
 
 /*******************************************************************************
  FUNCTIONS
@@ -166,8 +166,6 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-  cout << "mglReadPixels() begins here..." << endl;
-
   // Initialize the z-buffer to a default max for this draw pass.
   z_buffer.resize(width);
 
@@ -206,13 +204,6 @@ void mglReadPixels(MGLsize width,
     curr_triangle.c.pos[0] = ( width * (0.5f) ) * ( curr_triangle.c.pos[0] + 1 );
     curr_triangle.c.pos[1] = ( height * (0.5f) ) * ( curr_triangle.c.pos[1] + 1 );
 
-      cout << "After obj-to-display conversion:" << endl
-           << "Triangle # " << n+1 << endl
-           << "============" << endl
-           << "A: (" << curr_triangle.a.pos[0] << ", " << curr_triangle.a.pos[1] << ", " << curr_triangle.a.pos[2] << ")" << endl
-           << "B: (" << curr_triangle.b.pos[0] << ", " << curr_triangle.b.pos[1] << ", " << curr_triangle.b.pos[2] << ")" << endl
-           << "C: (" << curr_triangle.c.pos[0] << ", " << curr_triangle.c.pos[1] << ", " << curr_triangle.c.pos[2] << ")" << endl << endl;
-
     // ...and then transform those temp coords into the bounding box.
     // Note: We declare our bounding vars as integers for the control loop that
     // follows for barycentric calculations. We perform casts since the values
@@ -227,9 +218,9 @@ void mglReadPixels(MGLsize width,
       xmin = 0;
     if ( ymin < 0 )
       ymin = 0;
-    if ( xmax > width )
+    if ( (MGLpixel)xmax > width )
         xmax = width;
-    if ( ymax > height )
+    if ( (MGLpixel)ymax > height )
         ymax = height;
 
     // Now we pre-calculate the area of curr_triangle to help us with barycentric calculation.
@@ -247,7 +238,7 @@ void mglReadPixels(MGLsize width,
       for ( int j = ymin; j < ymax; ++j )
       {
         // FIXME: Here we must pass the interpolated value of z into the z-value for P
-        vec4 p_pos(i,j,0,1);
+        vec4 p_pos( i+0.5, j+0.5, 0, 1); // FIXME: Adding this ti try and fix the z-buffer jaggy error.
         vertex p(p_pos, p_color);
 
 
@@ -284,7 +275,7 @@ void mglReadPixels(MGLsize width,
           // already drawn at (i,j).
           // Include a check to ensure that the current Z value is between -1
           // and 1 for NDC space clipping.
-          if ( currZ < z_buffer.at(i).at(j) && currZ >= -1 && currZ <= 1 )
+          if ( currZ < z_buffer.at(i).at(j) && currZ > -1 && currZ < 1 )
           {
             // Set the z_buffer equal to the new, closer pixel at (i,j)
             z_buffer.at(i).at(j) = currZ;
@@ -328,7 +319,6 @@ void mglEnd()
             }
 
             listOfVertices.clear();
-            cout << "End of mglEnd() in TRIANGLES" << endl << endl;
 
             break;
 
@@ -349,7 +339,6 @@ void mglEnd()
             }
 
             listOfVertices.clear();
-            cout << "End of mglEnd() in QUADS" << endl << endl;
 
             break;
     }
@@ -367,36 +356,11 @@ void mglVertex2(MGLfloat x,
   // Create a container for the new 2D vertex.
   vec4 new_pos( x, y, 0.0f, 1.0f );
 
-
-  cout << "In mglVertex2() -- currentModelViewMatrix is: "
-       << currentModelViewMatrix << endl << endl;
-
-  cout << "vertex coordinates before modView" << endl
-       << "=================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
-
   // Multiply the new position by the currentModelViewMatrix
   new_pos = currentModelViewMatrix * new_pos;
 
-  cout << "vertex coordinates after modView" << endl
-       << "================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
-
   // Multiply the new position by the currentProjectionMatrix
   new_pos = currentProjectionMatrix * new_pos;
-
-  cout << "vertex coordinates after projMatrix" << endl
-       << "===================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
 
   // Give the vertex colour.
   vertex v( new_pos,currColor );
@@ -416,35 +380,11 @@ void mglVertex3(MGLfloat x,
   // Create a position container for the new 3D vertex.
   vec4 new_pos( x, y, z, 1.0f );
 
-  cout << "In mglVertex3() -- currentModelViewMatrix is: "
-       << currentModelViewMatrix << endl << endl;
-
-  cout << "vertex coordinates before modView" << endl
-       << "=================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
-
   // Multiply the new position by the currentModelViewMatrix
   new_pos = currentModelViewMatrix * new_pos;
 
-  cout << "vertex coordinates after modView" << endl
-       << "================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
-
   // Multiply the new position by the currentProjectionMatrix
   new_pos = currentProjectionMatrix * new_pos;
-
-  cout << "vertex coordinates after projMatrix" << endl
-       << "===================================" << endl
-       << "x: " << new_pos[0] << endl
-       << "y: " << new_pos[1] << endl
-       << "z: " << new_pos[2] << endl
-       << "w: " << new_pos[3] << endl << endl;
 
   // Create the vertex using the adjusted position and the current colour.
   vertex v( new_pos, currColor );
